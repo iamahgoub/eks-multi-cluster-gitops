@@ -1,0 +1,139 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create the inventory file and schema": [
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789507260092
+      },
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789508541965
+      }
+    ],
+    "1.2 Enumerate and record every Version_Reference": [
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789508545755
+      },
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789511833124
+      }
+    ],
+    "1.3 Resolve the two deferred pins and audit status flags and duplicate groups": [
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789511837460
+      },
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789513192342
+      }
+    ],
+    "1. Produce the Version Inventory": [
+      {
+        "executionId": "d66a37d5-bdff-48f7-a43f-f34d6469e0d2",
+        "chatSessionId": "sess_d4b5d659-6ef7-491a-b7c5-566b6987fa65",
+        "timestamp": 1789513192383
+      }
+    ],
+    "2.1 Create the suite harness": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905172949
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905860622
+      }
+    ],
+    "2.2 Implement checks 1 and 2 — Kustomize build and schema validation": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905867732
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906929222
+      }
+    ],
+    "2.3 Implement checks 3–7 — registry resolution": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905868692
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906930587
+      }
+    ],
+    "2.4 Implement checks 8 and 12 — CloudFormation validity": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905870142
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906932020
+      }
+    ],
+    "2.5 Implement checks 9, 10 and 11 — consistency, residue, and doc drift": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905871538
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906932939
+      }
+    ],
+    "2.6 Implement check 13 — application build and smoke": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789905872232
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906934158
+      }
+    ],
+    "2.7 Implement checks 14 and 15 — AWS-gated modules": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789906938473
+      },
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789907379318
+      }
+    ],
+    "2. Build the verification suite skeleton": [
+      {
+        "executionId": "585280b8-1468-4f7b-84f0-8f662289552b",
+        "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
+        "timestamp": 1789907379377
+      }
+    ]
+  }
+}
