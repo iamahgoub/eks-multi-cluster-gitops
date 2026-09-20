@@ -134,6 +134,25 @@
         "chatSessionId": "sess_48ba6938-f615-496a-95f5-22611476d352",
         "timestamp": 1789907379377
       }
+    ],
+    "3.1 Apply the entire Flux cutover as a single change": [
+      {
+        "executionId": "265d8aa6-d8a9-440a-a566-9d958912d9cd",
+        "chatSessionId": "sess_40c93a26-9fc0-43d5-b94a-eb7c672ecc2a",
+        "timestamp": 1789920859163
+      },
+      {
+        "executionId": "265d8aa6-d8a9-440a-a566-9d958912d9cd",
+        "chatSessionId": "sess_40c93a26-9fc0-43d5-b94a-eb7c672ecc2a",
+        "timestamp": 1789921329446
+      }
+    ],
+    "3. Flux upgrade and API cutover": [
+      {
+        "executionId": "265d8aa6-d8a9-440a-a566-9d958912d9cd",
+        "chatSessionId": "sess_40c93a26-9fc0-43d5-b94a-eb7c672ecc2a",
+        "timestamp": 1789921329478
+      }
     ]
   }
 }
