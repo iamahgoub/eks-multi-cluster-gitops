@@ -745,6 +745,28 @@
 #      build failed → `post_build` signals FAILURE → the stack rolls back.
 #      `process_command_status`'s own logic is unchanged.
 
+#
+# FINDING 29 (live end-to-end run, area G — third automated-setup defect).
+# The retained setup SSM documents derive the Region from the EC2 instance
+# identity document with a TOKEN-LESS (IMDSv1) request:
+# `curl -s http://169.254.169.254/latest/dynamic/instance-identity/document
+# | jq -r .region`. On the AL2023 VS Code Dev_Environment base image (task
+# 10.3/10.4) token-less IMDS access returns empty (IMDSv2 is required), so
+# AWS_REGION resolved to "" and every Region-dependent step failed: eksctl
+# ("AWS Region must be set" / "invalid input region --name") and
+# `aws secretsmanager create-secret` (endpoint `secretsmanager..amazonaws.com`,
+# exit 255). The empty value also propagated into `~/.bash_profile` (written
+# by the Install-Kubernetes-Clients `installK8sClientTools` step) and thus
+# into every later login-shell step (sealed-secrets, CodeCommit). This is
+# another Cloud9 -> VS Code migration consequence — Cloud9 set the Region for
+# you. FIX: the two places that derive the Region (Install-Kubernetes-Clients
+# step `installK8sClientTools` and the Create-Eks-Cluster step) now fetch an
+# IMDSv2 token (`PUT /latest/api/token`) and pass it as the
+# `X-aws-ec2-metadata-token` header; the token approach works whether IMDSv1
+# is enabled or not. Downstream login-shell documents inherit the corrected
+# value from `~/.bash_profile`, so no other document needs changing. No
+# artifact version is pinned, so no `entries` row is recorded.
+
 entries:
 
   # -----------------------------------------------------------------------

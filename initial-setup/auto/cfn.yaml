@@ -324,7 +324,7 @@ Resources:
             - "rm -rf $PREFIX/install-man-page.sh $PREFIX/yq.1"
             - "export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
             - "export AWS_ACCOUNT_ID=$ACCOUNT_ID"
-            - "export AWS_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')"
+            - "export AWS_REGION=$(TOKEN=$(curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\"); curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')"
             - "export AWS_DEFAULT_REGION=$AWS_REGION"
             - "export AWS_DEFAULT_OUTPUT=json"
             - "echo \"export ACCOUNT_ID=$ACCOUNT_ID\" >> /home/$OS_USER/.bash_profile"
@@ -427,7 +427,7 @@ Resources:
                   ;;
               esac
             - "export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
-            - "export AWS_REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')"
+            - "export AWS_REGION=$(TOKEN=$(curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\"); curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')"
             - "export AWS_DEFAULT_REGION=$AWS_REGION"
             - "echo \"Creating EKS cluster {{ClusterName}} with Kubernetes version {{Version}}...\""
             - |

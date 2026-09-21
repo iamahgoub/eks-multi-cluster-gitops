@@ -167,10 +167,10 @@ third-party and AWS pricing pages still carry the superseded closure wording;
 the July 2024 announcement is not the current status of CodeCommit. Reference:
 https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability
 
-### Automated setup: two live-run defects fixed (inventory FINDING 28)
+### Automated setup: three live-run defects fixed (inventory FINDING 28 & 29)
 
-Deploying `initial-setup/auto/cfn.yaml` end to end surfaced two defects the
-offline Cloud9 → VS Code retarget missed. Both are now fixed in the template.
+Deploying `initial-setup/auto/cfn.yaml` end to end surfaced three defects the
+offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
 
 - **Setup docs assumed a `~/environment` workspace that no longer exists.** The
   retained SSM setup documents run as `OS_USER=ec2-user` and `cd
@@ -203,6 +203,24 @@ offline Cloud9 → VS Code retarget missed. Both are now fixed in the template.
   (not `return`) on non-zero — so the build command terminates non-zero,
   CodeBuild marks the build failed, `post_build` signals FAILURE, and the stack
   rolls back. `process_command_status`'s own logic is unchanged.
+
+- **Region resolved empty because the docs used token-less IMDSv1.** The setup
+  documents derive the Region from the instance identity document with `curl -s
+  http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r
+  .region`. The AL2023 Dev_Environment base image requires IMDSv2, so the
+  token-less request returned empty and `AWS_REGION` resolved to `""`. Every
+  Region-dependent step then failed: eksctl with "AWS Region must be set" /
+  "invalid input region --name", and `aws secretsmanager create-secret` against
+  the malformed endpoint `secretsmanager..amazonaws.com` (exit 255). The empty
+  value was also written into `~/.bash_profile` by the first step and inherited
+  by the later login-shell documents (sealed-secrets, CodeCommit). Fix: the two
+  places that derive the Region (`InstallK8sClientToolsDoc` and
+  `CreateEKSClusterDoc`) now fetch an IMDSv2 token (`PUT /latest/api/token`) and
+  pass it as the `X-aws-ec2-metadata-token` header before reading the identity
+  document; the token approach works whether or not IMDSv1 is enabled, and the
+  downstream login-shell documents inherit the corrected value from
+  `~/.bash_profile`. Like the workspace-dir defect, this is a Cloud9 → VS
+  Code migration consequence — Cloud9 set the Region for you.
 
 ## Deferred future work
 
