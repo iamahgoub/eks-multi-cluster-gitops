@@ -167,9 +167,9 @@ third-party and AWS pricing pages still carry the superseded closure wording;
 the July 2024 announcement is not the current status of CodeCommit. Reference:
 https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability
 
-### Automated setup: four live-run defects fixed (inventory FINDING 28, 29 & 30)
+### Automated setup: five live-run defects fixed (inventory FINDING 28, 29, 30 & 31)
 
-Deploying `initial-setup/auto/cfn.yaml` end to end surfaced four defects the
+Deploying `initial-setup/auto/cfn.yaml` end to end surfaced five defects the
 offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
 
 - **Setup docs assumed a `~/environment` workspace that no longer exists.** The
@@ -239,6 +239,28 @@ offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
   and the upgrade's pinning approach. Stale `bitnami-labs` references in
   `NOTICE.md`, `initial-setup/README.md`, and `repos/gitops-system/README.md`
   were corrected to `bitnami` as well.
+
+- **Cloned repo was invisible in the editor (setup ran as the wrong user in the
+  wrong folder).** Even after `~/environment` was created, the setup docs run as
+  `ec2-user` and clone into `/home/ec2-user/environment` (mode `0700`), while the
+  browser VS Code editor is served as the `participant` user and opens
+  `/workshop`. `participant` can't even traverse `/home/ec2-user`, so the repo,
+  the cloned CodeCommit repos, and the sealed-secrets keys all landed where the
+  editor user couldn't see or reach them, and `/workshop` (what the editor
+  opened) was empty. Cloud9 never had this split — it was single-user (the editor
+  *was* `ec2-user`, opening `~/environment`). `/workshop` is also a lone migration
+  artifact: every lab guide (`scenarios.md`, `bin/README.md`,
+  `initial-setup/README.md`, `initial-setup/doc/repos/*.md`) roots its steps at
+  `~/environment`. Fix: restore the single-user, `~/environment`-rooted model as
+  `participant`. `CodeEditorSSMDoc` writes `/etc/workshop.env` (via `!Sub`,
+  honouring the `DevEnvironmentUser`/`DevEnvironmentHomeFolder` params); each of
+  the seven setup docs sources it right after OS detection and sets `OS_USER` to
+  the participant user (every `$OS_USER` path and `~/environment` heredoc then
+  follows automatically); and `DevEnvironmentHomeFolder` now defaults to
+  `/home/participant/environment` so the folder the editor creates/opens, the
+  clone target, and `~/environment` are the same place — keeping all lab guides
+  correct. Verified live: the repo clones to
+  `/home/participant/environment/eks-multi-cluster-gitops` owned by `participant`.
 
 ## Deferred future work
 

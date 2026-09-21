@@ -794,6 +794,41 @@
 # redirect. kubeseal is a CLI tool, not a pinned repository artifact, so no
 # `entries` row is added.
 
+#
+# FINDING 31 (live end-to-end run, area G — fifth automated-setup defect,
+# deepens FINDING 28a). Even with the `~/environment` directory created
+# (28a), the cloned workshop repo was INVISIBLE and inaccessible in the VS
+# Code editor. Root cause: the setup SSM documents run as `OS_USER=ec2-user`
+# and clone into `/home/ec2-user/environment`, but the browser VS Code editor
+# is served as the `participant` user and opens `${DevEnvironmentHomeFolder}`
+# (`/workshop`). `/home/ec2-user` is mode 0700, so `participant` cannot even
+# traverse into it — the repo, the cloned CodeCommit repos, and the
+# sealed-secrets keys all landed in a directory the editor user can neither
+# see nor reach, and `/workshop` (what the editor opened) was empty. This is
+# the decoupling Cloud9 never had (Cloud9 was single-user: the editor WAS
+# ec2-user and opened `~/environment`). Compounding it, `/workshop` is a lone
+# migration artifact — every workshop lab guide (`scenarios.md`,
+# `bin/README.md`, `initial-setup/README.md`, `initial-setup/doc/repos/*.md`)
+# roots its instructions at `~/environment`, so `/workshop` also broke doc
+# consistency. FIX (restores the coherent single-user, `~/environment`-rooted
+# model as the `participant` user): (1) `CodeEditorSSMDoc` writes
+# `/etc/workshop.env` (via `!Sub`, honouring the `DevEnvironmentUser` /
+# `DevEnvironmentHomeFolder` params) with `WORKSHOP_USER` / `WORKSHOP_HOME`;
+# (2) each of the seven setup documents, immediately after its OS-detection
+# block, sources `/etc/workshop.env` and sets `OS_USER` to the participant
+# user (falling back to the OS default if the file is absent) — because every
+# path already uses `$OS_USER` and every heredoc script uses `~/environment`
+# (which resolves to the participant home when run as that user), this single
+# override cascades everywhere with no other per-path edits; (3)
+# `DevEnvironmentHomeFolder` default changes from `/workshop` to
+# `/home/participant/environment`, so the folder the editor creates, opens
+# (`?folder=` and terminal cwd), and the folder the setup clones into are the
+# same place — and it equals `~/environment`, keeping every lab guide correct.
+# Verified live: `/etc/workshop.env` resolves `OS_USER=participant` and the
+# repo clones to `/home/participant/environment/eks-multi-cluster-gitops`
+# owned `participant:participant`. No artifact version is pinned, so no
+# `entries` row is added.
+
 entries:
 
   # -----------------------------------------------------------------------

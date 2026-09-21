@@ -51,9 +51,9 @@ Parameters:
     AllowedPattern: ^[a-z_][a-z0-9_-]{0,31}$
     ConstraintDescription: Must be a valid Linux username (1-32 chars, lowercase, starting with a letter or underscore)
   DevEnvironmentHomeFolder:
-    Description: Folder to open in the Dev_Environment VS Code session
+    Description: Folder to open in the Dev_Environment VS Code session (the participant user's ~/environment, where the workshop repo is cloned)
     Type: String
-    Default: /workshop
+    Default: /home/participant/environment
     AllowedPattern: ^/[A-Za-z0-9_][A-Za-z0-9_/.-]*$
     ConstraintDescription: Must be an absolute path starting with / and an alphanumeric or underscore character
 
@@ -183,6 +183,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "export PATH=$PATH:/usr/local/bin"
             - "export PREFIX=/tmp"
             - "export TOOLS_DIR=/opt/k8s-tools"
@@ -364,6 +365,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "su -c \"cd /home/$OS_USER/environment;git clone {{CloneUrl}};\" $OS_USER"
       DocumentFormat: YAML
@@ -423,6 +425,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)"
             - "export AWS_REGION=$(TOKEN=$(curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\"); curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')"
             - "export AWS_DEFAULT_REGION=$AWS_REGION"
@@ -639,6 +642,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
@@ -700,6 +704,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
@@ -773,6 +778,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
@@ -835,6 +841,7 @@ Resources:
                   exit 101
                   ;;
               esac
+              if [ -r /etc/workshop.env ]; then . /etc/workshop.env; export OS_USER="${WORKSHOP_USER:-$OS_USER}"; fi
             - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
@@ -1897,6 +1904,7 @@ Resources:
                 - set -euo pipefail
                 - !Sub sudo -i -u ${DevEnvironmentUser} mkdir -p /home/${DevEnvironmentUser}/.code-editor-server/data/User
                 - !Sub mkdir -p ${DevEnvironmentHomeFolder} && chown -R ${DevEnvironmentUser}:${DevEnvironmentUser} ${DevEnvironmentHomeFolder}
+                - !Sub printf 'WORKSHOP_USER=%s\nWORKSHOP_HOME=%s\n' '${DevEnvironmentUser}' '${DevEnvironmentHomeFolder}' > /etc/workshop.env
                 - !Sub |
                   tee /home/${DevEnvironmentUser}/.code-editor-server/data/User/settings.json <<EOF
                   {
