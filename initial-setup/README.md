@@ -147,7 +147,7 @@ Having prepared your working environment, you can now install a number of tools 
 
 3. Install `kubeseal`
    ```bash
-   wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz
+   wget https://github.com/bitnami/sealed-secrets/releases/download/v0.40.0/kubeseal-0.40.0-linux-amd64.tar.gz
    tar xfz kubeseal-0.40.0-linux-amd64.tar.gz
    sudo install -m 755 kubeseal /usr/local/bin/kubeseal
    ```

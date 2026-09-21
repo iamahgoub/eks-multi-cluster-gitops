@@ -293,11 +293,8 @@ Resources:
               fi
             - "gh --version"
             - "echo \"Installing kubeseal...\""
-            - "curl -s -D kubeseal-latest-header.txt https://github.com/bitnami-labs/sealed-secrets/releases/latest"
-            - "KUBESEAL_LATEST_TAG_URL=$(grep 'location:' kubeseal-latest-header.txt | cut -d' ' -f2 | tr -d '\\r')"
-            - "KUBESEAL_LATEST_TAG_VER=${KUBESEAL_LATEST_TAG_URL##*/}"
-            - "KUBESEAL_LATEST_VER_NUMBER=${KUBESEAL_LATEST_TAG_VER/v/}"
-            - "KUBESEAL_DOWNLOAD_URL=https://github.com/bitnami-labs/sealed-secrets/releases/download/${KUBESEAL_LATEST_TAG_VER}/kubeseal-${KUBESEAL_LATEST_VER_NUMBER}-linux-${CPU_ARCH}.tar.gz"
+            - "KUBESEAL_VERSION=0.40.0"
+            - "KUBESEAL_DOWNLOAD_URL=https://github.com/bitnami/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-${CPU_ARCH}.tar.gz"
             - "curl -L $KUBESEAL_DOWNLOAD_URL | tar -xz -C $PREFIX"
             - "echo \"Moving to directory $TOOLS_DIR/bin...\""
             - "mv $PREFIX/kubeseal $TOOLS_DIR/bin/"

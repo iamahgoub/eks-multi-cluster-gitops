@@ -767,6 +767,33 @@
 # value from `~/.bash_profile`, so no other document needs changing. No
 # artifact version is pinned, so no `entries` row is recorded.
 
+#
+# FINDING 30 (live end-to-end run, area G — fourth automated-setup defect).
+# The `installK8sClientTools` step installs the `kubeseal` CLI by cur/ing
+# `https://github.com/bitnami-labs/sealed-secrets/releases/latest` and parsing
+# the redirect `location:` header to extract the version tag. The
+# sealed-secrets repository was RENAMED on GitHub from `bitnami-labs` to
+# `bitnami`, so the old-org `releases/latest` now returns a REPO-RENAME
+# redirect whose `location:` ends in `/latest` (not a `/releases/tag/vX.Y.Z`
+# URL). The script therefore parsed the version as the literal string
+# `latest`, built `kubeseal-latest-linux-amd64.tar.gz`, received a 404 HTML
+# page, and `tar -xz` failed ("gzip: stdin: not in gzip format" ->
+# "mv: cannot stat '/tmp/kubeseal'" -> "kubeseal: command not found"). The step
+# still reported Success because the commands are not guarded by `set -e`, so
+# the missing binary went unnoticed — kubeseal is needed for the workshop's
+# sealed-secrets steps. The MANUAL path (`initial-setup/README.md`) was
+# unaffected: it pins `v0.40.0` and uses `wget`, which follows the rename
+# redirect to the real asset without parsing a version. FIX (aligned with the
+# spec's pinning philosophy and the manual README): drop the fragile
+# latest-parsing block and pin the automated install to `KUBESEAL_VERSION=0.40.0`
+# downloaded from the current `bitnami/sealed-secrets` org. Stale `bitnami-labs`
+# references in `NOTICE.md`, `initial-setup/README.md`, and
+# `repos/gitops-system/README.md` were also corrected to `bitnami`. The
+# `source_url` provenance fields in this inventory are intentionally left on the
+# old org — they record where each version was actually consulted and still
+# redirect. kubeseal is a CLI tool, not a pinned repository artifact, so no
+# `entries` row is added.
+
 entries:
 
   # -----------------------------------------------------------------------

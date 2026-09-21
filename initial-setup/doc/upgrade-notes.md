@@ -167,9 +167,9 @@ third-party and AWS pricing pages still carry the superseded closure wording;
 the July 2024 announcement is not the current status of CodeCommit. Reference:
 https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability
 
-### Automated setup: three live-run defects fixed (inventory FINDING 28 & 29)
+### Automated setup: four live-run defects fixed (inventory FINDING 28, 29 & 30)
 
-Deploying `initial-setup/auto/cfn.yaml` end to end surfaced three defects the
+Deploying `initial-setup/auto/cfn.yaml` end to end surfaced four defects the
 offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
 
 - **Setup docs assumed a `~/environment` workspace that no longer exists.** The
@@ -221,6 +221,24 @@ offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
   downstream login-shell documents inherit the corrected value from
   `~/.bash_profile`. Like the workspace-dir defect, this is a Cloud9 → VS
   Code migration consequence — Cloud9 set the Region for you.
+
+- **kubeseal CLI never installed because the sealed-secrets repo was renamed.**
+  The `installK8sClientTools` step derived the kubeseal version by curling
+  `github.com/bitnami-labs/sealed-secrets/releases/latest` and reading the
+  version tag off the redirect `location:` header. The repository was renamed
+  from the `bitnami-labs` org to `bitnami`, so the old URL now returns a
+  repo-rename redirect whose `location:` ends in `/latest` rather than
+  `/releases/tag/vX.Y.Z`. The version parsed as the literal `latest`, the
+  download URL `kubeseal-latest-linux-amd64.tar.gz` 404'd, `tar -xz` failed
+  ("gzip: stdin: not in gzip format"), and `kubeseal` was never installed — the
+  step still reported success only because the commands are not under `set -e`.
+  The manual path was unaffected (it pins `v0.40.0` and uses `wget`, which
+  follows the rename redirect without parsing a version). Fix: drop the
+  latest-parsing logic and pin `KUBESEAL_VERSION=0.40.0` downloaded from the
+  current `bitnami/sealed-secrets` org, consistent with `initial-setup/README.md`
+  and the upgrade's pinning approach. Stale `bitnami-labs` references in
+  `NOTICE.md`, `initial-setup/README.md`, and `repos/gitops-system/README.md`
+  were corrected to `bitnami` as well.
 
 ## Deferred future work
 
