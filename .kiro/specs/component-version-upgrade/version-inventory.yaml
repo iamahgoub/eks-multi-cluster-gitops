@@ -107,9 +107,13 @@
 # Zero `<unresolved — task 1.3: ...>` strings remain. The audit state, as
 # machine-checked over the 335 entries:
 #
-#   * status distribution — upgrade 279, removed 41, no-source 6, mutable 5,
+#   * status distribution — upgrade 280, removed 40, no-source 6, mutable 5,
 #     unresolvable 4. Exactly one flag per entry, all six drawn from the
-#     fixed set; no seventh flag was introduced (see FINDING 15).
+#     fixed set; no seventh flag was introduced (see FINDING 15). (The
+#     openid-connect-provider thumbprint entry moved from `removed` to
+#     `upgrade` when DERIVATION 2 was superseded by the documented
+#     well-known root-CA constant; target now equals current — see that
+#     entry's notes.)
 #   * conditional fields — `successor` present exactly on the `superseded`
 #     and `removed` entries, `source_url` present on every entry except the
 #     six `no-source` ones, `consulted` present on every entry carrying a
@@ -384,18 +388,28 @@
 #     equals `current`, and no edit is required at that occurrence. 150
 #     entries are in that state: 144 `upgrade` and the 6 `no-source`.
 #
-# FINDING 16 (task 1.3, corrects the design). There is NO `8.15.x` line of
-# the kubecost cost-analyzer chart. Design area D and task 8.4 both name one.
-# The chart's own version stream is 1.x then 2.x; the string `8.15.X` in
+# FINDING 16 (task 1.3, corrects the design; re-pinned to 2.8.4 in the live
+# run). There is NO `8.15.x` line of the kubecost cost-analyzer chart. Design
+# area D and task 8.4 both name one. The chart's own version stream is 1.x
+# then 2.x; the string `8.15.X` in
 # https://kubecost.github.io/cost-analyzer/index.yaml is the dependency
 # version constraint on the bundled `prometheus` SUBCHART of the 1.x
-# cost-analyzer charts. Resolution: highest GA non-pre-release cost-analyzer
-# in that index is 2.9.7, but this repository's `kubecost-repository` is
-# `oci://public.ecr.aws/kubecost`, whose cost-analyzer tag list ends at
-# 2.9.6 (2.9.7 returns 404). Verification check 3 resolves a pinned chart
-# against the index of the HelmRepository its HelmRelease references, so the
-# recorded target is 2.9.6 — an exact string, no wildcard. Task 8.4 should
-# stop describing an `8.15.x` line.
+# cost-analyzer charts. Task 8.4 should stop describing an `8.15.x` line.
+#   The target was first recorded as 2.9.6 (highest cost-analyzer tag then
+# resolvable through this repository's `kubecost-repository`,
+# `oci://public.ecr.aws/kubecost`). The live end-to-end run showed 2.9.x is
+# UNUSABLE as a standalone fresh-install target: the entire 2.9.x line is a
+# "prepare to upgrade to 3.0" TRANSITION release that hard-requires federation
+# / transition config — cluster_id in two places (FINDING 24b) plus a global
+# federated store — rather than being a normal GA install. Resolution: re-pin
+# to 2.8.4, the highest STABLE non-transition cost-analyzer in the OCI
+# registry `oci://public.ecr.aws/kubecost` (2.8.x tops out at 2.8.4).
+# `global.clusterId`/`global.clusterName` (FINDING 24) remain set — they are
+# valid and harmless in 2.8.x — but the 2.9-only second cluster_id place and
+# federated-store config are dropped (FINDING 24b superseded). Verification
+# check 3 resolves a pinned chart against the index of the HelmRepository its
+# HelmRelease references, so the recorded target is 2.8.4 — an exact string,
+# no wildcard.
 #
 # FINDING 17 (task 1.3, semantic narrowing task 5.1 inherits). The AL2023
 # accelerated AMI type is `AL2023_x86_64_NVIDIA`, verified published for
@@ -590,6 +604,106 @@
 #   https://github.com/crossplane-contrib/provider-aws/tree/v0.59.0/package/crds
 #   https://github.com/crossplane-contrib/provider-kubernetes/tree/v1.3.1/package/crds
 #   The `notes` on the affected entries below carry the per-entry confirmation.
+#
+# FINDING 24 (live end-to-end run, task 8.4 correction). The kubecost
+# cost-analyzer 2.9.6 chart FAILS to install as-is: its bundled `finopsagent`
+# subchart aborts with "clusterId is required. Please set
+# .Values.global.clusterId". This is a values-schema change across the
+# 2.2.2 → 2.9.6 upgrade — `global.clusterId` is a new MANDATORY value that
+# 2.2.2 did not require. The offline values-schema diff in task 8.4 could not
+# catch it because kubecost publishes no `values.schema.json`, so there was no
+# machine-readable schema to diff; the requirement only surfaced in a live
+# install. Resolution: set `spec.values.global.clusterId` and
+# `global.clusterName` to `${CLUSTER_NAME}` in
+# `repos/gitops-system/tools/kubecost/kubecost-release.yaml`, and add a
+# `spec.postBuild.substituteFrom` referencing the `cluster-info` ConfigMap to
+# `repos/gitops-system/clusters/template/kubecost.yaml` so `${CLUSTER_NAME}`
+# resolves per cluster (same pattern as karpenter-config.yaml). This makes the
+# clusterId cluster-specific, which is what kubecost expects for cost
+# attribution across the multi-cluster fleet.
+#
+# FINDING 24b (live end-to-end run, extends FINDING 24). SUPERSEDED by the
+# re-pin to 2.8.4 (see FINDING 16) — NO LONGER APPLICABLE, kept as history.
+# This finding applied ONLY to the 2.9.x transition line. Setting
+# `global.clusterId` alone was NOT sufficient for cost-analyzer 2.9.x. After
+# `global.clusterId` was set, install still failed at
+# cost-analyzer-deployment-template.yaml:1062 with "Kubecost 2.9.x is only
+# used for preparing agents to upgrade to 3.0. In kubecost 2.9, cluster_id is
+# set in two places." The `kubecost.clusterId` helper
+# (cost-analyzer/templates/_helpers.tpl, chart v2.9.6) required
+# `.Values.global.clusterId` to EQUAL
+# `.Values.prometheus.server.global.external_labels.cluster_id`, else it
+# `fail`ed the render. The chart default for the second key is `cluster-one`
+# (values.yaml), which mismatches our `${CLUSTER_NAME}`. The 2.9-only fix was
+# to also set `prometheus.server.global.external_labels.cluster_id`. This was
+# the two-place requirement that identified 2.9.x as a transition release;
+# rather than satisfy it, the fleet re-pinned to the stable 2.8.4 line, which
+# has no such requirement, so `prometheus.server.global.external_labels
+# .cluster_id` has been REMOVED from kubecost-release.yaml.
+#
+# FINDING 25 (live end-to-end run, task 8.4 correction, area D). The
+# aws-load-balancer-controller 3.5.0 (controller v3) chart FAILS at startup on
+# this solution's workload clusters: the pod crash-loops with "failed to get
+# VPC ID ... ec2imds GetMetadata ... context deadline exceeded". Root cause:
+# the Crossplane-composed workload managed NodeGroup runs with the EC2 IMDS
+# hop limit of 1, so controller pods (one network hop from the host) cannot
+# reach IMDS to discover the VPC id. Controller v2 (chart 1.4.6) tolerated a
+# missing IMDS VPC lookup; v3 hard-fails. This is a v2->v3 behaviour change the
+# offline values-schema diff could not see. Resolution (no node/IMDS change):
+# supply the controller its region and VPC id explicitly through the chart
+# values `region` and `vpcId`, sourced per-cluster from the workload
+# `cluster-info` ConfigMap via a `spec.postBuild.substituteFrom` added to
+# `repos/gitops-system/clusters/template/aws-load-balancer-controller.yaml`
+# (same pattern as karpenter-config.yaml / kubecost.yaml). `region` reads the
+# ConfigMap's `AWS_REGION` key and `vpcId` reads a NEW `VPC_ID` key added to
+# both workload cluster-info ConfigMaps in
+# `tools-config/crossplane-eks-composition/composition.yaml`; `VPC_ID` is
+# populated from the composed VPC's `status.atProvider.vpcId`, surfaced onto
+# the composite as `status.vpc_id` and mapped by the `cluster-info-mappings`
+# patchSet like the other data keys. The fix also required declaring
+# `status.vpc_id` (type string) in the XRD's status schema
+# (`compositeresourcedefinition.yaml`); without it Crossplane drops the
+# ToCompositeFieldPath write and the Required ConfigMap patch blocks with
+# "Unsynced resources".
+#
+# FINDING 26 (live end-to-end run, area D). The EKS 1.35 workload cluster
+# ships NO default StorageClass. The in-tree `gp2` default that older EKS
+# provided is gone: the only StorageClass present is a non-default `gp2` still
+# naming the REMOVED in-tree provisioner `kubernetes.io/aws-ebs`, which no
+# longer provisions on 1.35. Consequence: PVC-backed add-ons whose PVCs leave
+# `storageClassName` empty — kubecost `cost-analyzer` and its bundled
+# `prometheus-server` — bind to nothing and their PVCs stay Pending, so the
+# pods never start. Resolution (no node/driver change beyond what is already
+# deployed): add a default `gp3` StorageClass backed by the EBS CSI driver
+# (`provisioner: ebs.csi.aws.amazonaws.com`, `type: gp3`,
+# `volumeBindingMode: WaitForFirstConsumer`, `allowVolumeExpansion: true`,
+# `reclaimPolicy: Delete`, annotated
+# `storageclass.kubernetes.io/is-default-class: "true"`) as
+# `repos/gitops-system/tools/aws-ebs-csi/storageclass-gp3.yaml`, added to the
+# `resources` list of that directory's `kustomization.yaml`. The EBS CSI
+# HelmRelease that backs it is already deployed from the same directory, so
+# the StorageClass rides the existing tools sync with no new dependency. This
+# is an environment behaviour the offline version scan could not see; it pins
+# no artifact version and adds no Version_Reference, so no `entries` row is
+# recorded for it.
+#
+# FINDING 27 (live end-to-end run, area C/D). provider-aws v0.59.0's DynamoDB
+# Table observe / isUpToDate path calls read actions beyond the create/update
+# set. A workload Crossplane `Table` managed resource stayed Synced=False with
+# `AccessDeniedException: not authorized to perform:
+# dynamodb:DescribeContinuousBackups`, even though the table itself reached
+# ACTIVE in AWS — the create succeeded, but drift detection could not read the
+# table back. The embedded IAM policy in
+# `repos/gitops-system/tools-config/crossplane-iam/crossplane-iam.yaml`
+# (statement Sid Stmt1658117635374) granted only CreateTable, DeleteTable,
+# DescribeTable, TagResource, UntagResource, UpdateTable. Resolution: added the
+# three read actions the v0.59.0 Table observer makes —
+# `dynamodb:DescribeContinuousBackups` (the one in the error),
+# `dynamodb:DescribeTimeToLive`, and `dynamodb:ListTagsOfResource` — added all
+# three proactively so successive observe calls do not fail one after another.
+# Task 8.5 had left crossplane-iam unchanged; this is an environment behaviour
+# the offline scan could not see. It pins no artifact version and adds no
+# Version_Reference, so no `entries` row is recorded for it.
 
 entries:
 
@@ -1014,45 +1128,44 @@ entries:
   - component: openid-connect-provider thumbprint
     category: aws-resource
     file: repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml
-    locator: spec.resources[cluster-oidc-idp].base.spec.forProvider.thumbprintList[0] (line 590)
+    locator: spec.resources[cluster-oidc-idp].base.spec.forProvider.thumbprintList[0] (line 606)
     current: 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
-    target: n/a
-    status: removed
-    successor: >-
-      thumbprintList retained and populated by a composition patch (not a
-      literal); DERIVATION 2 — see notes and task 4.4
+    target: 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
+    status: upgrade
     source_url: https://raw.githubusercontent.com/crossplane-contrib/provider-aws/v0.59.0/package/crds/iam.aws.crossplane.io_openidconnectproviders.yaml
-    consulted: 2026-11-20
+    consulted: 2026-11-24
     notes: >-
-      A literal thumbprint is a latent failure — it is the fingerprint of
-      the OIDC endpoint's issuing CA and stops matching silently when that
-      CA rotates. Requirement 4.17 requires zero literal thumbprint values
-      in any manifest.
+      RESOLVED — documented well-known constant (supersedes DERIVATION 2).
+      target equals current, so per FINDING 15 the residual `upgrade` flag
+      applies: none of the five conditional flags fires, a source of record
+      exists and is recorded in source_url, and no edit to the value is
+      required at the occurrence. `no-source` was rejected because a source
+      of record does exist (the pinned CRD plus the documented AWS root CA)
+      and adopting it would force source_url to be omitted; `removed` no
+      longer applies because the value is retained, not eliminated.
 
-      TASK 4.2 DECISION — DERIVATION 2 (patch, do not omit). Read from the
-      OpenIDConnectProvider CRD shipped in provider-aws v0.59.0
-      (iam.aws.crossplane.io/v1beta1, kind OpenIDConnectProvider). Its
-      spec.forProvider schema lists thumbprintList in `required`
-      (required: [thumbprintList, url]) and types it as an array with
-      minItems: 1, maxItems: 5. thumbprintList is therefore a
-      schema-required input with no default — the provider does NOT
-      auto-populate it from the url. So DERIVATION 1 (omit thumbprintList)
-      is not available: an object without it is rejected by the CRD schema
-      (verification check 2 / kubeconform) and by the API server.
+      DERIVATION 2 (patch) IS SUPERSEDED. A live end-to-end run against a
+      real AWS account showed DERIVATION 2 produced an AWS-invalid value:
+      the task 4.4 patch drove thumbprintList[0] from
+      status.eks_cluster_oidc_issuer_url — the issuer URL (~60 chars) — but
+      IAM requires each thumbprintList member to be exactly a 40-char hex
+      SHA-1 thumbprint and rejected it with "Member must have length equal
+      to 40". Crossplane patches cannot compute a SHA-1, and the CRD in
+      provider-aws v0.59.0 lists thumbprintList in `required` with
+      minItems: 1 (so the field cannot be omitted or left empty).
 
-      BASIS: the `required` array and the minItems: 1 constraint on
-      spec.forProvider in the pinned CRD (source_url above), consulted
-      2026-11-20.
-
-      IMPLEMENTATION (task 4.4): keep the thumbprintList field but replace
-      the literal 9e99a48a9960b14926bb7f3b02e22da2b0ab7280 with a value
-      supplied through the existing `patches` mechanism on the
-      cluster-oidc-idp resource, mirroring the existing
-      status.eks_cluster_oidc_issuer_url -> spec.forProvider.url patch, so
-      the thumbprint is obtained from the provisioned cluster at
-      provisioning time and no literal survives. Binding constraint per
-      Requirement 4.17 / Property 17: no literal thumbprint value remains in
-      any manifest.
+      RESOLUTION. thumbprintList[0] is set to the documented well-known AWS
+      OIDC root-CA thumbprint constant 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
+      (Starfield Services Root CA G2 — the repo's original value). For EKS
+      OIDC endpoints AWS validates against its own trusted-CA store and does
+      not rely on the supplied value; it only enforces the 40-char format.
+      The Starfield root CA is long-lived, so a stale-fingerprint failure is
+      not a practical risk. The invalid thumbprint patch is removed; the
+      status.eks_cluster_oidc_issuer_url -> spec.forProvider.url patch is
+      kept. Requirement 4.17 was relaxed to permit this single documented
+      well-known constant (with the comment recorded in the composition)
+      while still forbidding per-cluster or hand-copied thumbprints that
+      could silently go stale.
 
 
   # -----------------------------------------------------------------------
@@ -1131,36 +1244,138 @@ entries:
     file: repos/gitops-system/tools/kubecost/kubecost-release.yaml
     locator: spec.chart.spec.version (line 15)
     current: 2.2.2
-    target: 2.9.6
+    target: 2.8.4
+    status: upgrade
+    source_url: https://gallery.ecr.aws/kubecost/cost-analyzer
+    consulted: 2026-11-20
+    notes: >-
+      Exact string, no wildcard. FINDING 16: there is no `8.15.x` line of this
+      chart. The cost-analyzer stream is 1.x then 2.x; `8.15.X` in the Helm
+      index is the version constraint on the bundled `prometheus` SUBCHART of
+      the 1.x cost-analyzer charts, which the design misread as the chart's own
+      line. The target was first recorded as 2.9.6 (the highest cost-analyzer
+      tag resolvable through this repository's `kubecost-repository`,
+      `oci://public.ecr.aws/kubecost`), but the live end-to-end run proved the
+      entire 2.9.x line is a "prepare to upgrade to 3.0" TRANSITION release: it
+      hard-requires federation/transition config (cluster_id in two places —
+      FINDING 24b — plus a global federated store) and is not a valid
+      standalone fresh-install target. Re-pinned to 2.8.4, the highest STABLE
+      non-transition cost-analyzer in that OCI registry (2.8.x tops out at
+      2.8.4). FINDING 24 (`global.clusterId`) still applies and remains set —
+      it is valid and harmless in 2.8.x — but FINDING 24b (the 2.9-only second
+      cluster_id place) is superseded and its value removed. Verification check
+      3 resolves each pinned chart against the index of the HelmRepository its
+      HelmRelease references; 2.8.4 is present there.
+
+  - component: kubecost global.clusterId / global.clusterName
+    category: helm-values
+    file: repos/gitops-system/tools/kubecost/kubecost-release.yaml
+    locator: spec.values.global.clusterId, spec.values.global.clusterName
+    current: '<absent in 2.2.2 — not required>'
+    target: ${CLUSTER_NAME}
     status: upgrade
     source_url: https://gallery.ecr.aws/kubecost/cost-analyzer
     consulted: 2026-09-15
     notes: >-
-      Resolved by task 1.3; exact string, no wildcard. FINDING 16: there is
-      no `8.15.x` line of this chart. The cost-analyzer stream is 1.x then
-      2.x; `8.15.X` in the Helm index is the version constraint on the
-      bundled `prometheus` SUBCHART of the 1.x cost-analyzer charts, which
-      the design misread as the chart's own line. The highest GA
-      non-pre-release cost-analyzer in https://kubecost.github.io/cost-analyzer/index.yaml
-      is 2.9.7, but this HelmRelease resolves through
-      `kubecost-repository` (`oci://public.ecr.aws/kubecost`), whose
-      cost-analyzer tag list ends at 2.9.6 — 2.9.7 returns 404 there.
-      Verification check 3 resolves each pinned chart against the index of
-      the HelmRepository its HelmRelease references, so the target is the
-      highest GA version that registry publishes: 2.9.6.
+      FINDING 24 (live end-to-end run). The kubecost 2.x line requires
+      `global.clusterId` — a new MANDATORY value the 2.2.2 chart did not
+      require (its bundled `finopsagent` subchart aborts install with
+      "clusterId is required. Please set .Values.global.clusterId"). The
+      offline values-schema diff in task 8.4 could not catch it because
+      kubecost publishes no `values.schema.json`. Still applies at the re-pinned
+      target 2.8.4 and remains set. Value `${CLUSTER_NAME}`, resolved
+      per-cluster by the `spec.postBuild.substituteFrom` on the `cluster-info`
+      ConfigMap added to repos/gitops-system/clusters/template/kubecost.yaml
+      (same pattern as karpenter-config.yaml). `${CLUSTER_NAME}` is a Flux
+      substitution variable, not a static pin, so no upstream version resolves
+      it. (FINDING 24b — the additional 2.9-only second cluster_id place — is
+      superseded by the re-pin to 2.8.4; see the entry below.)
+
+  - component: kubecost prometheus.server.global.external_labels.cluster_id
+    category: helm-values
+    file: repos/gitops-system/tools/kubecost/kubecost-release.yaml
+    locator: spec.values.prometheus.server.global.external_labels.cluster_id
+    current: '<removed — 2.9-transition-only, not present at target 2.8.4>'
+    target: '<n/a — SUPERSEDED by re-pin to 2.8.4; entry removed from kubecost-release.yaml>'
+    status: superseded
+    source_url: https://github.com/kubecost/cost-analyzer-helm-chart/blob/v2.9.6/cost-analyzer/templates/_helpers.tpl
+    consulted: 2026-11-20
+    notes: >-
+      FINDING 24b (live end-to-end run) — SUPERSEDED, kept as history. This was
+      the SECOND of the two places cost-analyzer 2.9.x required cluster_id: the
+      `kubecost.clusterId` helper (chart v2.9.6 _helpers.tpl) `fail`ed the
+      render — "In kubecost 2.9, cluster_id is set in two places"
+      (cost-analyzer-deployment-template.yaml:1062) — unless `global.clusterId`
+      EQUALED `prometheus.server.global.external_labels.cluster_id`. That
+      two-place requirement is exactly what marks 2.9.x as a 3.0-transition
+      release. Rather than satisfy it, the fleet re-pinned to the stable 2.8.4
+      line (FINDING 16), which has no such requirement. The
+      `prometheus.server.global.external_labels.cluster_id` value has therefore
+      been REMOVED from kubecost-release.yaml (leaving the now-empty
+      prometheus.server.global block removed too); only the prometheus image
+      repository overrides remain under prometheus.server.
+
+  - component: aws-load-balancer-controller region / vpcId
+    category: helm-values
+    file: repos/gitops-system/tools/aws-load-balancer-controller/aws-lb-controller-release.yaml
+    locator: spec.values.region, spec.values.vpcId
+    current: '<absent in 1.4.6 — controller v2 discovered these via IMDS>'
+    target: ${AWS_REGION} / ${VPC_ID}
+    status: upgrade
+    source_url: https://github.com/aws/eks-charts/blob/master/stable/aws-load-balancer-controller/README.md
+    consulted: 2026-11-20
+    notes: >-
+      FINDING 25 (live end-to-end run). Controller v3 (chart 3.5.0) hard-fails
+      at startup fetching the VPC id from IMDS ("failed to get VPC ID ...
+      ec2imds GetMetadata ... context deadline exceeded") because the workload
+      managed NodeGroup runs with IMDS hop limit 1. Controller v2 (chart 1.4.6)
+      tolerated this. Supply region/vpcId explicitly via chart values. Resolved
+      per-cluster by a `spec.postBuild.substituteFrom` on the cluster-info
+      ConfigMap added to
+      repos/gitops-system/clusters/template/aws-load-balancer-controller.yaml
+      (same pattern as karpenter-config.yaml). `region` reads the ConfigMap's
+      `AWS_REGION`; `vpcId` reads the new `VPC_ID` key. Both are Flux
+      substitution variables, not static pins.
+
+  - component: cluster-info VPC_ID data key
+    category: aws-resource
+    file: repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml
+    locator: spec.resources[configmap-cluster-info-workload-cluster / remote-configmap-cluster-info-workload-cluster].base.spec.forProvider.manifest.data.VPC_ID
+    current: '<absent>'
+    target: status.atProvider.vpcId (of the composed VPC)
+    status: upgrade
+    source_url: https://github.com/crossplane-contrib/provider-aws/blob/v0.59.0/apis/ec2/v1beta1/vpc_types.go
+    consulted: 2026-11-20
+    notes: >-
+      FINDING 25 (live end-to-end run). New `VPC_ID` data key added to BOTH
+      workload cluster-info ConfigMaps so aws-load-balancer-controller v3.5.0
+      can be given the VPC id without reaching IMDS. Populated from the composed
+      VPC managed resource's `status.atProvider.vpcId` (confirmed the field
+      that carries the vpc-xxxx id in provider-aws v0.59.0 VPCObservation),
+      surfaced onto the composite as `status.vpc_id` by a ToCompositeFieldPath
+      patch on the vpc resource, then mapped into the ConfigMap data by the
+      `cluster-info-mappings` patchSet like the other data keys.
 
   - component: kubecost-modeling
     category: container-image
     file: repos/gitops-system/tools/kubecost/kubecost-release.yaml
-    locator: spec.values.forecasting.fullImageName (line 27)
+    locator: spec.values.forecasting.fullImageName (line 39)
     current: v0.1.6
-    target: '<unresolved — task 8.4: the kubecost-modeling tag the target cost-analyzer chart declares>'
+    target: v0.1.31
     status: upgrade
     source_url: https://gallery.ecr.aws/kubecost/kubecost-modeling
     consulted: 2026-11-20
     notes: >-
       The only tagged image reference in this HelmRelease; the six others
-      state a repository with no tag and are not Version_References.
+      state a repository with no tag and are not Version_References. Tag chosen
+      to match the re-pinned cost-analyzer 2.8.4 (FINDING 16): `helm show
+      values oci://public.ecr.aws/kubecost/cost-analyzer --version 2.8.4`
+      declares `forecasting.image.tag: v0.1.31` (default repo
+      gcr.io/kubecost1/kubecost-modeling). This repo mirrors every kubecost
+      image to public.ecr.aws, so the `fullImageName` override is KEPT and
+      re-pinned to `public.ecr.aws/kubecost/kubecost-modeling:v0.1.31` (tag
+      confirmed present on the public ECR mirror). The previous value
+      `v0.1.34` was the 2.9.6-era modeling tag.
 
   - component: sealed-secrets controller version label
     category: k8s-version
@@ -2006,7 +2221,7 @@ entries:
     file: repos/gitops-system/tools-config/external-secrets/sealed-secrets-key.yaml
     locator: apiVersion (line 14)
     current: external-secrets.io/v1alpha1
-    target: external-secrets.io/v1beta1
+    target: external-secrets.io/v1
     status: upgrade
     source_url: https://github.com/external-secrets/external-secrets/releases
     consulted: 2026-11-20
@@ -2015,14 +2230,22 @@ entries:
       FINDING 6. External Secrets Operator is going from chart 0.4.4 to
       2.10.0 and external-secrets.io/v1alpha1 is not served by current ESO.
       This migration is scoped in neither the requirements nor the design;
-      task 8.3 must absorb it.
+      task 8.3 must absorb it. LIVE-RUN CORRECTION: the correct served
+      version for ESO 2.10.0 is external-secrets.io/v1, not v1beta1. The
+      earlier v1alpha1 -> v1beta1 migration was insufficient because ESO
+      2.10.0 ships v1beta1 with served=false (v1 is the only served
+      version). A Flux dry-run against the live cluster failed with
+      `no matches for kind "ExternalSecret" in version
+      "external-secrets.io/v1beta1"`, so both the SecretStore and
+      ExternalSecret in sealed-secrets-key.yaml declare v1. The v1 schema
+      is compatible with the existing field bodies.
 
   - component: external-secrets.io group-version
     category: k8s-api-version
     file: repos/gitops-system/tools-config/external-secrets/sealed-secrets-key.yaml
     locator: apiVersion (line 29)
     current: external-secrets.io/v1alpha1
-    target: external-secrets.io/v1beta1
+    target: external-secrets.io/v1
     status: upgrade
     source_url: https://github.com/external-secrets/external-secrets/releases
     consulted: 2026-11-20

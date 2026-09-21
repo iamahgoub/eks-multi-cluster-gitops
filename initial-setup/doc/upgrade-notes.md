@@ -25,16 +25,16 @@ change, the change made and a resolvable upstream migration reference.
 |---|---|---|
 | Flux distribution | `v2.1.2` → `v2.9.5`. Every `Kustomization`, `GitRepository`, and `HelmRepository` moved off `*.toolkit.fluxcd.io/v1beta2` to `/v1`, and every `HelmRelease` off `helm.toolkit.fluxcd.io/v2beta1` to `/v2` — the beta APIs Flux v2.7/v2.8 removed. Both `gotk-components.yaml` twins regenerated from the pinned CLI (controllers: source `v1.9.5`, kustomize `v1.9.5`, helm `v1.6.4`, notification `v1.9.4`). Group-versions stated outside a resource's own `apiVersion` (patch targets, health-check references, inline patch bodies) moved too. | https://github.com/fluxcd/flux2/discussions/5572 |
 | Crossplane core | Helm chart `1.15.0` → `1.20.12`, staying on the v1.20 line (see deferred work below). | https://charts.crossplane.io/stable |
-| Crossplane `provider-aws` | `crossplane-contrib/provider-aws` `v0.47.1` → `v0.59.0`. The monolith is actively maintained, so the `*.aws.crossplane.io` managed-resource groups and the `aws.crossplane.io/v1beta1` `ProviderConfig` are retained, not migrated. The hard-coded OIDC IdP thumbprint was removed in favour of provisioning-time derivation. | https://github.com/crossplane-contrib/provider-aws/releases/tag/v0.59.0 |
+| Crossplane `provider-aws` | `crossplane-contrib/provider-aws` `v0.47.1` → `v0.59.0`. The monolith is actively maintained, so the `*.aws.crossplane.io` managed-resource groups and the `aws.crossplane.io/v1beta1` `ProviderConfig` are retained, not migrated. The OIDC IdP thumbprint is kept as the documented well-known AWS root-CA constant `9e99a48a9960b14926bb7f3b02e22da2b0ab7280` (Starfield Services Root CA G2): a live end-to-end run showed that deriving it from the issuer URL yields an AWS-invalid value ("Member must have length equal to 40"), and provider-aws v0.59.0 requires a 40-char SHA-1 thumbprint that a Crossplane patch cannot compute. AWS validates EKS OIDC against its own trusted-CA store, so the constant is safe. | https://github.com/crossplane-contrib/provider-aws/releases/tag/v0.59.0 |
 | Crossplane `provider-kubernetes` | `crossplane-contrib/provider-kubernetes` `v0.13.0` → `v1.3.1`. | https://github.com/crossplane-contrib/provider-kubernetes/releases/tag/v1.3.1 |
 | Karpenter | Chart `0.36.1` → `1.14.1`. `NodePool` → `karpenter.sh/v1`, `EC2NodeClass` → `karpenter.k8s.aws/v1`, `NodePool.spec.template.spec.nodeClassRef` rewritten to the v1 `group`/`kind`/`name` form (the `apiVersion` key is removed), and `disruption.consolidationPolicy` `WhenUnderutilized` → `WhenEmptyOrUnderutilized`. | https://karpenter.sh/v1.0/upgrading/v1-migration/ |
 | Node OS: AL2 → AL2023 | Composition node-group AMI types `AL2_x86_64` → `AL2023_x86_64_STANDARD` (non-gpu) and `AL2_x86_64_GPU` → `AL2023_x86_64_NVIDIA` (gpu); Karpenter `EC2NodeClass.spec.amiFamily` `AL2` → `AL2023` with the now-required `spec.amiSelectorTerms: [- alias: al2023@latest]`. `amiFamily: AL2023` selects the `nodeadm` bootstrap mode. Kubernetes `1.32` is the last version for which Amazon EKS publishes AL2 AMIs, and both cluster tiers are above it. | https://docs.aws.amazon.com/eks/latest/userguide/al2023.html |
 | Kubernetes / Amazon EKS versions | Management cluster → `1.36` (Target_Kubernetes_Version), workload cluster → `1.35` (Workload_Kubernetes_Version). CloudFormation `KubernetesVersion` `AllowedValues` and the kubectl download `Mappings` rewritten to the current standard-support minors. | https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html |
-| aws-load-balancer-controller | Chart `1.4.6` → `3.5.0` (v2 → v3 controller major bump). `HelmRelease` values reconciled against the target chart's schema; removed/renamed keys re-expressed. | https://kubernetes-sigs.github.io/aws-load-balancer-controller/ |
-| external-secrets | Chart `0.4.4` → `2.10.0` (two major lines). `HelmRelease` values reconciled against the target chart's schema. | https://external-secrets.io/latest/guides/migrating-v1beta1-to-v1/ |
+| aws-load-balancer-controller | Chart `1.4.6` → `3.5.0` (v2 → v3 controller major bump). `HelmRelease` values reconciled against the target chart's schema; removed/renamed keys re-expressed. Live-run correction: the v3 controller hard-fails at startup fetching the VPC id from IMDS (`failed to get VPC ID ... ec2imds GetMetadata ... context deadline exceeded`) because the Crossplane-provisioned workload node group runs with IMDS hop limit 1, so pods can't reach IMDS; v2 tolerated this. Fixed by giving the controller its region and VPC id explicitly via chart values `region: ${AWS_REGION}` and `vpcId: ${VPC_ID}`, substituted per-cluster by `postBuild` from the `cluster-info` ConfigMap — which gained a new `VPC_ID` key (from the composed VPC's `status.atProvider.vpcId`) alongside the existing `AWS_REGION`. No node/IMDS change. | https://kubernetes-sigs.github.io/aws-load-balancer-controller/ |
+| external-secrets | Chart `0.4.4` → `2.10.0` (two major lines). `HelmRelease` values reconciled against the target chart's schema. The `SecretStore` and `ExternalSecret` in `sealed-secrets-key.yaml` move to `external-secrets.io/v1`. Live-run correction: ESO 2.10.0 serves `v1` only (v1beta1 ships with `served=false`), so an interim v1beta1 target was insufficient and produced `no matches for kind "ExternalSecret" in version "external-secrets.io/v1beta1"` on Flux dry-run. | https://external-secrets.io/latest/guides/migrating-v1beta1-to-v1/ |
 | aws-ebs-csi-driver | Chart `2.30.0` → `2.66.0`. | https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/CHANGELOG.md |
 | sealed-secrets | Chart `2.7.1` → `2.20.0`; namespace version label set to the controller image version the chart deploys. | https://github.com/bitnami-labs/sealed-secrets/blob/main/RELEASE-NOTES.md |
-| kubecost cost-analyzer | Chart `2.2.2` → the exact `2.9.x` patch pinned in the inventory, with the `kubecost-modeling` auxiliary image tag the target chart declares. | https://github.com/kubecost/cost-analyzer-helm-chart/releases |
+| kubecost cost-analyzer | Chart `2.2.2` → `2.8.4`, with the matching `kubecost-modeling` image tag `v0.1.31` (the tag chart 2.8.4 declares). Live-run correction: the target was first set to `2.9.6`, but the whole `2.9.x` line turned out to be a "prepare to upgrade to 3.0" **transition release** that hard-requires federation/transition config (cluster_id in two places plus a global federated store) and is not a valid standalone fresh-install target. Re-pinned to `2.8.4`, the highest **stable non-transition** cost-analyzer in the OCI registry `oci://public.ecr.aws/kubecost`. `global.clusterId`/`global.clusterName` are still set to `${CLUSTER_NAME}` per-cluster via `postBuild` substitution from the `cluster-info` ConfigMap (a mandatory value vs 2.2.2 that the offline diff missed because kubecost publishes no `values.schema.json`; valid and harmless in 2.8.x). The 2.9-only second cluster_id place (`prometheus.server.global.external_labels.cluster_id`) is dropped, since 2.8.x does not require it. | https://github.com/kubecost/cost-analyzer-helm-chart/releases |
 
 ## Live-upgrade ordering
 
@@ -97,6 +97,38 @@ capabilities this sample depends on:
 
 Migrating to v2 is deferred future work. Upstream guide:
 https://docs.crossplane.io/master/guides/upgrade-to-crossplane-v2/
+
+### Default `gp3` StorageClass added for PVC-backed add-ons
+
+The live run surfaced that the EKS `1.35` workload cluster ships **no default
+StorageClass** — the only one present is a non-default `gp2` still naming the
+removed in-tree provisioner `kubernetes.io/aws-ebs`. Add-ons whose PVCs leave
+`storageClassName` empty (kubecost `cost-analyzer` and its bundled
+`prometheus-server`) then bind to nothing and stay `Pending`. A default `gp3`
+StorageClass backed by the already-deployed EBS CSI driver was added at
+`repos/gitops-system/tools/aws-ebs-csi/storageclass-gp3.yaml`
+(`provisioner: ebs.csi.aws.amazonaws.com`, `type: gp3`,
+`volumeBindingMode: WaitForFirstConsumer`, `allowVolumeExpansion: true`,
+`reclaimPolicy: Delete`, annotated
+`storageclass.kubernetes.io/is-default-class: "true"`) and listed in that
+directory's `kustomization.yaml`. Reference:
+https://docs.aws.amazon.com/eks/latest/userguide/create-storage-class.html
+
+### Crossplane IAM policy gained DynamoDB read actions
+
+The live run surfaced that the sample-app `Table` reached `ACTIVE` in AWS but
+its Crossplane managed resource stayed `Synced=False` with
+`AccessDeniedException: not authorized to perform:
+dynamodb:DescribeContinuousBackups`. provider-aws `v0.59.0` reads the table back
+during its observe / drift-detection pass and calls more than the
+create/update set granted. The embedded IAM policy in
+`repos/gitops-system/tools-config/crossplane-iam/crossplane-iam.yaml` (statement
+Sid `Stmt1658117635374`) was extended with the three read actions that observer
+makes — `dynamodb:DescribeContinuousBackups`, `dynamodb:DescribeTimeToLive`, and
+`dynamodb:ListTagsOfResource` — added together so successive observe calls don't
+fail one after another. This is an install-time behaviour the offline scan could
+not see. Reference:
+https://github.com/crossplane-contrib/provider-aws/releases/tag/v0.59.0
 
 ### `aws-auth` ConfigMap is deprecated but retained
 

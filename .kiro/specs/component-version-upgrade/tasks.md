@@ -340,8 +340,8 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
 - [x] 13. Checkpoint — offline suite green
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 14. End-to-end run — REQUIRES AN AWS ACCOUNT
-  - [ ]* 14.1 Execute verification checks 14 and 15 against a real AWS account
+- [-] 14. End-to-end run — REQUIRES AN AWS ACCOUNT
+  - [-]* 14.1 Execute verification checks 14 and 15 against a real AWS account
     - **This is a manual/integration run, not an offline coding task.** It is the only step that cannot be validated offline; it confirms rather than discovers.
     - This is also where the category-4 live-cluster deployment ordering recorded in task 12.5 is exercised — AL2023 before raising a running cluster above `1.32`, the Flux components and resources applied in one reconciliation, the Karpenter v1 upstream migration order, and `authenticationMode` stated at creation.
     - Check 14: assert Target_Kubernetes_Version and Workload_Kubernetes_Version are both in EKS standard support on the day the check runs

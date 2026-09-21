@@ -857,6 +857,20 @@
         "chatSessionId": "sess_0ab1bf06-b084-4f42-836d-0faa2e731c1e",
         "timestamp": 1789938810656
       }
+    ],
+    "14. End-to-end run — REQUIRES AN AWS ACCOUNT": [
+      {
+        "executionId": "236ccd88-c977-4cd4-a2e4-9797e1756937",
+        "chatSessionId": "sess_0ab1bf06-b084-4f42-836d-0faa2e731c1e",
+        "timestamp": 1789986891796
+      }
+    ],
+    "14.1 Execute verification checks 14 and 15 against a real AWS account": [
+      {
+        "executionId": "236ccd88-c977-4cd4-a2e4-9797e1756937",
+        "chatSessionId": "sess_0ab1bf06-b084-4f42-836d-0faa2e731c1e",
+        "timestamp": 1789986893139
+      }
     ]
   }
 }
