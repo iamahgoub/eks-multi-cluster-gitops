@@ -167,9 +167,9 @@ third-party and AWS pricing pages still carry the superseded closure wording;
 the July 2024 announcement is not the current status of CodeCommit. Reference:
 https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability
 
-### Automated setup: five live-run defects fixed (inventory FINDING 28, 29, 30 & 31)
+### Automated setup: six live-run defects fixed (inventory FINDING 28, 29, 30, 31 & 32)
 
-Deploying `initial-setup/auto/cfn.yaml` end to end surfaced five defects the
+Deploying `initial-setup/auto/cfn.yaml` end to end surfaced six defects the
 offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
 
 - **Setup docs assumed a `~/environment` workspace that no longer exists.** The
@@ -261,6 +261,22 @@ offline Cloud9 → VS Code retarget missed. All are now fixed in the template.
   clone target, and `~/environment` are the same place — keeping all lab guides
   correct. Verified live: the repo clones to
   `/home/participant/environment/eks-multi-cluster-gitops` owned by `participant`.
+
+- **Setup scripts assumed the login user already had `~/.ssh` and a writable
+  `~/.bash_profile` (broke once setup ran as `participant`).** `ec2-user` gets a
+  `~/.ssh` at launch; the freshly `adduser`-created `participant` does not, so
+  `setup_codecommit_ssh.sh`'s `cd ~/.ssh` failed and the generated key landed in
+  the wrong place, then `kubectl create secret --from-file ~/.ssh/gitops` failed.
+  Separately, the earlier root-context steps had created
+  `/home/participant/.bash_profile` as root via `>>`, so the participant-run
+  scripts hit "Permission denied" appending their `SSH_PUB_KEY_ID`/`REPO_PREFIX`
+  exports. `setupCodeCommitSSHAccess` failed and the stack rolled back. Fix: in
+  the first setup step (root) pre-create `/home/$OS_USER/.ssh` (0700) and
+  `touch`+`chown` `/home/$OS_USER/.bash_profile` to the participant before any
+  root append, so `~/.ssh` exists and `.bash_profile` stays participant-writable;
+  plus a defensive `mkdir -p ~/.ssh` in the codecommit script. Verified live on a
+  clean redeploy — the full bootstrap succeeds and `git-creds-system.yaml` is
+  produced.
 
 ## Deferred future work
 

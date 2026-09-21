@@ -829,6 +829,31 @@
 # owned `participant:participant`. No artifact version is pinned, so no
 # `entries` row is added.
 
+#
+# FINDING 32 (live end-to-end run, area G — sixth automated-setup defect,
+# surfaced by the FINDING 31 participant migration). Running the setup as the
+# `participant` user (FINDING 31) exposed that two setup scripts assumed login
+# state that only `ec2-user` had by default: (1) `setup_codecommit_ssh.sh`
+# does `cd ~/.ssh`, but a freshly `adduser`-created `participant` has no
+# `~/.ssh` (ec2-user gets one at launch) — `cd` failed, so the ssh keypair was
+# written to the home dir instead and `kubectl create secret --from-file
+# ~/.ssh/gitops` then failed "no such file or directory"; (2) the same script
+# (and `clone_codecommit_repos.sh`) append exports to `~/.bash_profile`, but
+# the earlier root-context steps (`installK8sClientTools`, `createEksCluster`)
+# had created `/home/participant/.bash_profile` as ROOT via `>>`, so the
+# participant-run scripts hit "Permission denied" writing it, losing
+# `SSH_PUB_KEY_ID`/`REPO_PREFIX`. Net: `setupCodeCommitSSHAccess` failed and
+# (via FINDING 28b) the stack rolled back. FIX: (A) in the first setup step
+# (`installK8sClientTools`, root) pre-create `/home/$OS_USER/.ssh` (0700) and
+# `touch` + `chown` `/home/$OS_USER/.bash_profile` to the participant BEFORE
+# any root `>>` append, so `~/.ssh` exists and `.bash_profile` stays
+# participant-writable through every later append; (B) defensively
+# `mkdir -p ~/.ssh && chmod 700 ~/.ssh` at the top of the codecommit script.
+# Verified live on a clean redeploy: `setupCodeCommitSSHAccess` and the whole
+# bootstrap command succeed, `~/.ssh` holds gitops key/config/known_hosts,
+# `.bash_profile` is participant-owned, and `git-creds-system.yaml` is produced.
+# No artifact version is pinned, so no `entries` row is added.
+
 entries:
 
   # -----------------------------------------------------------------------
