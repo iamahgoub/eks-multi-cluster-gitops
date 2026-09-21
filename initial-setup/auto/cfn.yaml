@@ -367,6 +367,7 @@ Resources:
                   exit 101
                   ;;
               esac
+            - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "su -c \"cd /home/$OS_USER/environment;git clone {{CloneUrl}};\" $OS_USER"
       DocumentFormat: YAML
       DocumentType: Command
@@ -641,6 +642,7 @@ Resources:
                   exit 101
                   ;;
               esac
+            - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
               cat >create_root_sealed_secrets_encryption_keys.sh <<EOF
@@ -701,6 +703,7 @@ Resources:
                   exit 101
                   ;;
               esac
+            - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
               cat >setup_codecommit_ssh.sh <<EOF
@@ -773,6 +776,7 @@ Resources:
                   exit 101
                   ;;
               esac
+            - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
               cat >clone_codecommit_repos.sh <<EOF
@@ -834,6 +838,7 @@ Resources:
                   exit 101
                   ;;
               esac
+            - "mkdir -p /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment"
             - "cd /home/$OS_USER/environment"
             - |
               cat >create_iam_role_for_crossplane.sh <<EOF
@@ -1335,9 +1340,10 @@ Resources:
                     --output text \
                     --region $AWS_REGION)
                   PREV_EXIT_CODE=$?
-                  EXIT_CODE=$(process_command_status $CMD_ID $PREV_EXIT_CODE $DEV_ENVIRONMENT_INSTANCE_ID $AWS_REGION)
+                  process_command_status $CMD_ID $PREV_EXIT_CODE $DEV_ENVIRONMENT_INSTANCE_ID $AWS_REGION
+                  EXIT_CODE=$?
                   if [ $EXIT_CODE -ne 0 ]; then
-                    return $EXIT_CODE
+                    exit $EXIT_CODE
                   fi
                   CMD_ID=$(aws ssm send-command \
                     --document-name "Bootstrap-Git-And-Management-Cluster" \
@@ -1351,9 +1357,10 @@ Resources:
                     --output text \
                     --region $AWS_REGION)
                   PREV_EXIT_CODE=$?
-                  EXIT_CODE=$(process_command_status $CMD_ID $PREV_EXIT_CODE $DEV_ENVIRONMENT_INSTANCE_ID $AWS_REGION)
+                  process_command_status $CMD_ID $PREV_EXIT_CODE $DEV_ENVIRONMENT_INSTANCE_ID $AWS_REGION
+                  EXIT_CODE=$?
                   if [ $EXIT_CODE -ne 0 ]; then
-                    return $EXIT_CODE
+                    exit $EXIT_CODE
                   fi
             post_build:
               commands: 

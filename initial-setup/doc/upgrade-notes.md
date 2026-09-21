@@ -167,6 +167,43 @@ third-party and AWS pricing pages still carry the superseded closure wording;
 the July 2024 announcement is not the current status of CodeCommit. Reference:
 https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability
 
+### Automated setup: two live-run defects fixed (inventory FINDING 28)
+
+Deploying `initial-setup/auto/cfn.yaml` end to end surfaced two defects the
+offline Cloud9 → VS Code retarget missed. Both are now fixed in the template.
+
+- **Setup docs assumed a `~/environment` workspace that no longer exists.** The
+  retained SSM setup documents run as `OS_USER=ec2-user` and `cd
+  /home/$OS_USER/environment` (and `cd ~/environment` inside their heredoc
+  scripts). Cloud9 used to auto-create `~/environment`; the VS Code
+  Dev_Environment's `CodeEditorSSMDoc` creates only `${DevEnvironmentHomeFolder}`
+  (`/workshop`) for the `participant` user, so `/home/ec2-user/environment`
+  never existed. The result was `cd: /home/ec2-user/environment: No such file
+  or directory`, then a `git clone` "could not create work tree dir ...
+  Permission denied", cascading to the dependent documents. Fix: each of the
+  five documents that use `~/environment` (`CloneWorkshopRepo`,
+  `CreateRootSealedSecretsEncryptionKeysDoc`, `SetupCodeCommitSSHAccessDoc`,
+  `CloneCodeCommitReposDoc`, `CreateIAMRoleForCrossplaneDoc`) now runs `mkdir -p
+  /home/$OS_USER/environment && chown $OS_USER: /home/$OS_USER/environment`
+  immediately after its OS_USER `case`/`esac` block and before the first `cd` —
+  a self-contained, order-independent per-document step. This is the same
+  Cloud9-workspace assumption already flagged for the OS guard (inventory
+  FINDING 8), simply not carried into the new instance by task 10.3/10.4.
+
+- **CodeBuild masked setup failures, so the stack reported CREATE_COMPLETE over
+  a failed setup.** In the `BuildProject` BuildSpec `build` phase both callers
+  captured setup status with command substitution:
+  `EXIT_CODE=$(process_command_status ...)`. But `process_command_status` echoes
+  progress to stdout and reports failure via `return`, so `$(...)` captured the
+  progress *text*, not the numeric return code; the failure was lost,
+  `CODEBUILD_BUILD_SUCCEEDING` stayed 1, and `post_build` signalled SUCCESS to
+  the WaitCondition. Fix (both the Configure-Workshop-Environment and
+  Bootstrap-Git-And-Management-Cluster call sites): call `process_command_status`
+  directly, capture its return code with `EXIT_CODE=$?`, and `exit $EXIT_CODE`
+  (not `return`) on non-zero — so the build command terminates non-zero,
+  CodeBuild marks the build failed, `post_build` signals FAILURE, and the stack
+  rolls back. `process_command_status`'s own logic is unchanged.
+
 ## Deferred future work
 
 Recorded here as deferred, not implemented anywhere in this upgrade:
