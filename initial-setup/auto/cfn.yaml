@@ -187,6 +187,7 @@ Resources:
             - "export PATH=$PATH:/usr/local/bin"
             - "export PREFIX=/tmp"
             - "export TOOLS_DIR=/opt/k8s-tools"
+            - "mkdir -p /home/$OS_USER/.ssh && chmod 700 /home/$OS_USER/.ssh && touch /home/$OS_USER/.bash_profile && chown $OS_USER: /home/$OS_USER/.ssh /home/$OS_USER/.bash_profile"
             - |
               case {{Version}} in
                 1.36)
@@ -710,7 +711,7 @@ Resources:
             - |
               cat >setup_codecommit_ssh.sh <<EOF
               #!/bin/bash
-              cd ~/.ssh
+              mkdir -p ~/.ssh && chmod 700 ~/.ssh && cd ~/.ssh
               ssh-keygen -q -t rsa -b 4096 -N '' -C gitops -f gitops <<<y >/dev/null 2>&1
               chmod 600 gitops*
               export SSH_PUB_KEY_ID=\$(aws iam upload-ssh-public-key \\
