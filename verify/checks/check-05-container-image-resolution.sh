@@ -47,6 +47,39 @@ ref_has_version() {
 
 registry_of() { printf '%s' "${1%%/*}"; }
 
+# ---------------------------------------------------------------------------
+# Expected-condition rule: sample-application placeholder images.
+#
+# The walkthrough has the user BUILD and PUSH the sample applications
+# (product-catalog-fe, product-catalog-api) to their OWN registry, then replace
+# the image reference. The references committed in the sample use a placeholder
+# public-ECR alias - `public.ecr.aws/h2c3y9h0/multi-cluster-gitops/...` - which
+# is sample scaffolding, not a registry the user (or this suite) controls.
+# Whether or not that alias happens to still host a given tag, these references
+# are EXPECTED to not reliably resolve: they are replaced during the walkthrough.
+#
+# So for these specific references - the apps-manifests sample-app images under
+# the placeholder public-ECR alias - report a dedicated non-failing info/skip
+# with a clear reason instead of attempting resolution and emitting UNRESOLVED.
+#
+# This is targeted precisely by (file under apps-manifests) AND (ref under the
+# placeholder alias). Genuine add-on / auxiliary image references - the kubectl
+# helper image in the Crossplane provider config, the kubecost auxiliary images
+# under public.ecr.aws/kubecost/..., etc. - do NOT match, so a real resolution
+# failure for any of those still fails the run.
+SAMPLE_APP_PLACEHOLDER_PREFIX="public.ecr.aws/h2c3y9h0/multi-cluster-gitops/"
+is_sample_app_placeholder() {
+    local rel="$1" ref="$2"
+    case "$rel" in
+        repos/apps-manifests/*) : ;;
+        *) return 1 ;;
+    esac
+    case "$ref" in
+        "$SAMPLE_APP_PLACEHOLDER_PREFIX"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 add_file_refs() {
     local f="$1" rel ref
     [ -f "$f" ] || return 0
@@ -84,6 +117,12 @@ fi
 while IFS=$'\t' read -r rel ref; do
     [ -n "$ref" ] || continue
     reg="$(registry_of "$ref")"
+    # Expected-condition: user-built sample-app placeholder image (see rule
+    # above). Report non-failing and skip resolution entirely.
+    if is_sample_app_placeholder "$rel" "$ref"; then
+        verify_info "expected-condition: $ref ($rel) is a user-built sample application image under the placeholder public-ECR alias; it is built/pushed to the user's own registry and replaced during the walkthrough, so it is reported non-failing rather than UNRESOLVED."
+        continue
+    fi
     if [ "$have_crane" -eq 0 ]; then
         verify_info "crane unavailable; image not resolved: $ref ($rel, registry $reg)"
         continue

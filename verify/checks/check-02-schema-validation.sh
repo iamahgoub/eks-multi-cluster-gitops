@@ -225,13 +225,91 @@ fi
 verify_info "CRD schema cache populated with ${total_schemas} schema(s) from pinned artifacts"
 
 # --------------------------------------------------------------------------
-# Enumerate manifests and validate. Kustomize config files (kind Kustomization
-# on kustomize.config.k8s.io) are covered by check 1, so they are excluded here
-# to avoid noise; Flux Kustomization CRs live in differently-named files and
-# are still validated.
+# Distinguish COMPLETE manifests from files kubeconform cannot validate
+# standalone, so the check does not raise false schema failures on them.
+#
+# Two kinds of file are NOT complete standalone manifests:
+#
+#   (a) STRATEGIC-MERGE PATCH FRAGMENTS. A file listed by a kustomization under
+#       patchesStrategicMerge / patches / patchesJson6902 is an intentionally
+#       PARTIAL overlay - e.g. a Deployment fragment that sets only replicas and
+#       the image and omits spec.selector. It is merged onto its base and is
+#       validated as part of the built overlay by check 1; on its own it fails
+#       "missing required property" against the full kind schema. Such a file is
+#       identified structurally: it is a `path` target of a kustomization patch
+#       directive (not a `resources:` target). It is excluded from standalone
+#       validation and reported (non-failing) as unvalidated.
+#
+#   (b) TEMPLATE FILES bearing bootstrap PLACEHOLDER tokens. Files such as
+#       clusters/*/flux-system/gotk-sync.yaml and workloads/template/git-repo.yaml
+#       carry tokens (REPO_PREFIX, cluster-name, overlay-dir-name, app-name,
+#       branch-name, AWS_REGION, EKS_CONSOLE_IAM_ENTITY_ARN) that the bin/*.sh
+#       bootstrap scripts substitute in place. Before substitution a field like
+#       `spec.url: REPO_PREFIX/gitops-system` is not a valid URL and fails the
+#       CRD's url pattern. A file is treated as a template iff it still contains
+#       one of the tokens the bootstrap substitutes; it is excluded and reported
+#       (non-failing) as unvalidated until substitution occurs.
+#
+# Every other manifest is a complete manifest and is validated normally, so
+# genuine schema validation is unchanged. Kustomize config files (kind
+# Kustomization on kustomize.config.k8s.io) are covered by check 1 and excluded
+# here to avoid noise; Flux Kustomization CRs live in differently-named files
+# and are still validated.
 # --------------------------------------------------------------------------
+
+# Collect the absolute paths of every strategic-merge / patch fragment.
+PATCH_FRAGMENTS="$WORK/patch_fragments.txt"
+: >"$PATCH_FRAGMENTS"
+while IFS= read -r -d '' kfile; do
+    kdir="$(dirname "$kfile")"
+    while IFS= read -r p; do
+        [ -n "$p" ] && [ "$p" != "null" ] || continue
+        python3 -c 'import os,sys; print(os.path.normpath(os.path.join(sys.argv[1], sys.argv[2])))' \
+            "$kdir" "$p" >>"$PATCH_FRAGMENTS"
+    done < <(
+        yq ea '
+            ( .patchesStrategicMerge[]? ),
+            ( .patches[]? | (.path // select(type == "!!str")) ),
+            ( .patchesJson6902[]?.path? )
+        ' "$kfile" 2>/dev/null
+    )
+done < <(
+    find "$repos_dir" -type f \
+        \( -name 'kustomization.yaml' -o -name 'kustomization.yml' -o -name 'Kustomization' \) \
+        -print0
+)
+sort -u "$PATCH_FRAGMENTS" -o "$PATCH_FRAGMENTS"
+
+# Bootstrap placeholder tokens the bin/*.sh scripts substitute at setup time.
+TEMPLATE_TOKENS='REPO_PREFIX|EKS_CONSOLE_IAM_ENTITY_ARN|AWS_REGION|cluster-name|overlay-dir-name|app-name|branch-name'
+
+is_patch_fragment() { grep -qxF "$1" "$PATCH_FRAGMENTS"; }
+is_template_file()  { grep -qE "$TEMPLATE_TOKENS" "$1" 2>/dev/null; }
+
+# declared_api_versions <file> : comma-joined list of the apiVersion(s) the file
+# declares, for the unvalidated report (Requirement 10.2).
+declared_api_versions() {
+    local v
+    v="$(yq ea '.apiVersion' "$1" 2>/dev/null | grep -v '^null$' | grep -v '^$' | sort -u | paste -sd, -)"
+    [ -n "$v" ] && printf '%s' "$v" || printf 'unknown'
+}
+
 files=()
+n_patch=0
+n_template=0
 while IFS= read -r -d '' f; do
+    if is_patch_fragment "$f"; then
+        n_patch=$((n_patch + 1))
+        verify_unvalidated "${f#$repo_root/}" "$(declared_api_versions "$f")" \
+            "strategic-merge patch fragment (partial overlay); validated as part of its built overlay by check 1"
+        continue
+    fi
+    if is_template_file "$f"; then
+        n_template=$((n_template + 1))
+        verify_unvalidated "${f#$repo_root/}" "$(declared_api_versions "$f")" \
+            "template file with unsubstituted bootstrap placeholder(s) ($TEMPLATE_TOKENS); validated after bin/*.sh substitution at bootstrap"
+        continue
+    fi
     files+=("$f")
 done < <(
     find "$repos_dir" -type f -name '*.yaml' \
@@ -239,8 +317,10 @@ done < <(
         -print0 | sort -z
 )
 
+verify_info "excluded from standalone validation: ${n_patch} strategic-merge patch fragment(s), ${n_template} placeholder-bearing template file(s) (reported unvalidated, non-failing)"
+
 if [ "${#files[@]}" -eq 0 ]; then
-    verify_info "no manifests to validate under repos/"
+    verify_info "no complete manifests to validate under repos/"
     exit 0
 fi
 

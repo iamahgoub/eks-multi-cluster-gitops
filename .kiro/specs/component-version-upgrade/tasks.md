@@ -32,7 +32,7 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 1.1, 1.2, 1.3_
 
   - [x] 1.3 Resolve the two deferred pins and audit status flags and duplicate groups
-    - Resolve the exact kubecost cost-analyzer patch within the `8.15.x` line and record it as an exact version string — a wildcard is not a permitted target
+    - Resolve the exact kubecost cost-analyzer patch within the `2.9.x` line (the current `2.x` major line; the target registry `oci://public.ecr.aws/kubecost` publishes up to `2.9.6`) and record it as an exact version string — a wildcard is not a permitted target
     - Resolve the AL2023 accelerated AMI type name that Amazon EKS publishes for both `1.36` and `1.35`, for the `workload-type: gpu` branch of the composition map transform, and record it with its source URL and consulted date
     - Assign exactly one status flag per entry: `upgrade`, `unresolvable` (`requests==v2.33.0`, `express ^4.22.3`, `body-parser ^1.20.8`), `superseded`, `no-source`, `mutable` (frontend `:latest` tags), or `removed` (Cloud9 parameters and assets, OIDC thumbprint literal) with a `successor`
     - Assign `duplicate_group` values to every Duplicated_Reference, including the two `gotk-components.yaml` twins, the Flux CLI pair in `cfn.yaml` and `initial-setup/README.md`, the Sealed Secrets version triple, and the frontend image tag pair; assert one identical `target` per group
@@ -110,24 +110,24 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.8, 3.10, 3.11, 8.12_
     - _Properties: Property 1, Property 2, Property 3_
 
-  - [ ]* 3.2 Run verification checks 1, 2 and 9
+  - [x] 3.2 Run verification checks 1, 2 and 9
     - Schema validation uses the CRDs embedded in the same `gotk-components.yaml` being validated against, so a surviving removed group-version has no schema and fails
     - _Requirements: 10.1, 10.2, 10.13_
 
-- [ ] 4. Crossplane platform upgrade
-  - [ ] 4.1 Confirm the three `v1alpha1` managed resource group-versions are served
+- [x] 4. Crossplane platform upgrade
+  - [x] 4.1 Confirm the three `v1alpha1` managed resource group-versions are served
     - Read the CRDs shipped in `crossplane-contrib/provider-aws:v0.59.0` and `crossplane-contrib/provider-kubernetes:v1.3.1` and confirm each of `eks.aws.crossplane.io/v1alpha1` (`NodeGroup`), `kubernetes.crossplane.io/v1alpha1` (`Object`, `ProviderConfig`), and `dynamodb.aws.crossplane.io/v1alpha1` (sample app table) is served
     - Record the confirmation per group-version in the inventory with the package version consulted; zero managed resources may remain on an unserved group-version
     - _Requirements: 4.5, 4.6_
     - _Properties: Property 4_
 
-  - [ ] 4.2 Decide the OIDC thumbprint derivation and record it
+  - [x] 4.2 Decide the OIDC thumbprint derivation and record it
     - Determine from the `OpenIDConnectProvider` CRD in the target package which of the two derivations applies: omit `thumbprintList` if `v0.59.0` populates it from the URL, otherwise patch it from the cluster's OIDC issuer through the existing `patches` mechanism, mirroring how `spec.forProvider.url` is already patched with a `TrimPrefix` transform
     - Record the chosen derivation and its basis in the inventory; the binding constraint is only that no literal thumbprint survives
     - _Requirements: 4.17_
     - _Properties: Property 17_
 
-  - [ ] 4.3 Apply the Crossplane version bumps
+  - [x] 4.3 Apply the Crossplane version bumps
     - `repos/gitops-system/tools/crossplane/crossplane-core/crossplane-release.yaml`: chart `1.20.12` as a single exact version, no range or wildcard
     - `repos/gitops-system/tools/crossplane/crossplane-aws-provider/aws-provider.yaml`: `crossplane-contrib/provider-aws:v0.59.0`, exactly one AWS provider package
     - `repos/gitops-system/tools/crossplane/crossplane-k8s-provider/k8s-provider.yaml`: `crossplane-contrib/provider-kubernetes:v1.3.1`
@@ -136,7 +136,7 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7, 4.8, 4.10, 4.12, 4.18_
     - _Properties: Property 12, Property 13_
 
-  - [ ] 4.4 Implement the thumbprint derivation and verify the connection-details chain
+  - [x] 4.4 Implement the thumbprint derivation and verify the connection-details chain
     - In `repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml`, replace the literal `9e99a48a9960b14926bb7f3b02e22da2b0ab7280` at `spec.resources[cluster-oidc-idp].base.spec.forProvider.thumbprintList[0]` per the decision recorded in 4.2
     - Structurally confirm the chain is unchanged: `compositeresourcedefinition.yaml` `connectionSecretKeys` `[cluster-ca, apiserver-endpoint, kubeconfig]` → composition `connectionDetails` publishing exactly three details named `cluster-ca`, `apiserver-endpoint`, `value` → `clusters-config/template/def/eks-cluster.yaml` `writeConnectionSecretToRef`
     - Confirm the composed resource set is preserved exactly — VPC, internet gateway, four subnets, two Elastic IPs, two NAT gateways, three route tables, EKS `Cluster`, managed `NodeGroup`, `OpenIDConnectProvider`, cluster-info and remote-bootstrap objects — with nothing added or removed
@@ -144,33 +144,33 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 4.13, 4.14, 4.15, 4.16, 4.17, 4.19_
     - _Properties: Property 17, Property 18_
 
-  - [ ]* 4.5 Run verification checks 2, 4 and 5, plus the secret-material scan
+  - [x] 4.5 Run verification checks 2, 4 and 5, plus the secret-material scan
     - `ripgrep` for the removed thumbprint literal and for AWS long-lived key material patterns across `repos/` and `initial-setup/`
     - _Requirements: 4.7, 10.2, 10.4, 10.5_
 
-- [ ] 5. Node OS migration: AL2 → AL2023
-  - [ ] 5.1 Change both node group AMI types in the composition
+- [x] 5. Node OS migration: AL2 → AL2023
+  - [x] 5.1 Change both node group AMI types in the composition
     - In `repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml`, in the `map` transform on `spec.parameters.workload-type`: `non-gpu` branch `AL2_x86_64` → `AL2023_x86_64_STANDARD`, `gpu` branch `AL2_x86_64_GPU` → the AL2023 accelerated AMI type resolved in task 1.3
     - Preserve the transform structure and both branches so `workload-type: gpu` keeps working
     - The AL2/version pairing is a final-state invariant (Property 11), not a sequencing rule: task 5 and task 6 may be done in either order or concurrently, because no intermediate tree is reconciled against a cluster. The operator-facing rule — AL2023 in place before a *running* cluster moves above 1.32 — is recorded in task 12.5
     - _Requirements: 2.7, 2.9_
     - _Properties: Property 11_
 
-  - [ ] 5.2 Change the Karpenter node AMI family
+  - [x] 5.2 Change the Karpenter node AMI family
     - In `repos/gitops-system/tools-config/karpenter-config/node-pool.yaml`, set `EC2NodeClass.spec.amiFamily` to `AL2023` and add the now-required `spec.amiSelectorTerms` as `- alias: al2023@latest`
     - These change together: `amiFamily: AL2023` selects the `nodeadm` bootstrap mode
     - _Requirements: 2.8_
     - _Properties: Property 11_
 
-  - [ ]* 5.3 Run verification checks 1 and 2
+  - [x] 5.3 Run verification checks 1 and 2
     - _Requirements: 10.1, 10.2_
 
-- [ ] 6. Kubernetes and Amazon EKS version upgrade
-  - [ ] 6.1 Set the management cluster version
+- [x] 6. Kubernetes and Amazon EKS version upgrade
+  - [x] 6.1 Set the management cluster version
     - In `initial-setup/config/mgmt-cluster-eksctl.yaml`, set `metadata.version` to `1.36` and set `apiVersion` to the config API version accepted by eksctl `v0.230.0`
     - _Requirements: 2.1, 2.10_
 
-  - [ ] 6.2 Rewrite the CloudFormation version parameter and kubectl map
+  - [x] 6.2 Rewrite the CloudFormation version parameter and kubectl map
     - In `initial-setup/auto/cfn.yaml`, set the `KubernetesVersion` default to `1.36` and replace `AllowedValues` with the Kubernetes minor versions Amazon EKS lists on standard support, including `1.36` and `1.35` and excluding every extended-support and unlisted version
     - Rewrite the kubectl download `Mappings` block so there is exactly one released patch URL per allowed value, each of the same minor version as the key that selects it
     - Edit the two as a pair — a divergent key set makes the template invalid
@@ -178,19 +178,19 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 2.5, 2.6, 2.11, 2.12_
     - _Properties: Property 9_
 
-  - [ ] 6.3 Set the workload cluster version
+  - [x] 6.3 Set the workload cluster version
     - In `repos/gitops-system/clusters-config/template/def/eks-cluster.yaml`, set `eks-k8s-version` and `mng-k8s-version` both to `1.35`
     - _Requirements: 2.2, 2.3, 2.4_
     - _Properties: Property 10_
 
-  - [ ]* 6.4 Run verification checks 8 and 12
+  - [x] 6.4 Run verification checks 8 and 12
     - _Requirements: 2.6, 10.12_
 
-- [ ] 7. Checkpoint — versions and platform settled
+- [x] 7. Checkpoint — versions and platform settled
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Cluster add-on upgrade
-  - [ ] 8.1 Migrate Karpenter to v1
+- [x] 8. Cluster add-on upgrade
+  - [x] 8.1 Migrate Karpenter to v1
     - In `repos/gitops-system/tools/karpenter/karpenter-release.yaml`, pin chart `1.14.1` as an exact version
     - In `repos/gitops-system/tools-config/karpenter-config/node-pool.yaml`: `NodePool` → `karpenter.sh/v1`, `EC2NodeClass` → `karpenter.k8s.aws/v1`, `spec.template.spec.nodeClassRef` → the v1 `group`/`kind`/`name` form, and `disruption.consolidationPolicy` `WhenUnderutilized` → `WhenEmptyOrUnderutilized`
     - The `nodeClassRef` group-version is stated *inside* the `NodePool`, not as its own `apiVersion` — it is easy to miss
@@ -198,107 +198,107 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 5.1, 5.6, 5.7, 5.8_
     - _Properties: Property 5_
 
-  - [ ] 8.2 Upgrade aws-load-balancer-controller 1.4.6 → 3.5.0
+  - [x] 8.2 Upgrade aws-load-balancer-controller 1.4.6 → 3.5.0
     - Pin the chart in `repos/gitops-system/tools/aws-load-balancer-controller/aws-lb-controller-release.yaml`
     - Render the target chart defaults, diff the key set against the `HelmRelease` `spec.values`, and classify each key as unchanged, renamed, or removed; re-express removed keys through whatever key the target accepts for the same behaviour rather than dropping them
     - This spans a controller major bump (v2 → v3) and is one of the two highest-risk migrations in the upgrade
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.9, 5.10_
     - _Properties: Property 6, Property 13_
 
-  - [ ] 8.3 Upgrade external-secrets 0.4.4 → 2.10.0
+  - [x] 8.3 Upgrade external-secrets 0.4.4 → 2.10.0
     - Pin the chart in `repos/gitops-system/tools/external-secrets/external-secrets-release.yaml`
     - Apply the same values-schema diff procedure; two major lines are crossed, so substantial renames are expected
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.9, 5.10_
     - _Properties: Property 6, Property 13_
 
-  - [ ] 8.4 Upgrade the remaining three charts and the Sealed Secrets label
+  - [x] 8.4 Upgrade the remaining three charts and the Sealed Secrets label
     - `aws-ebs-csi-driver` `2.30.0` → `2.66.0` in `repos/gitops-system/tools/aws-ebs-csi/aws-ebs-csi-release.yaml`
     - `sealed-secrets` `2.7.1` → `2.20.0` in `repos/gitops-system/tools/sealed-secrets/sealed-secrets-release.yaml`
-    - `kubecost` cost-analyzer `2.2.2` → the exact `8.15.x` patch resolved in task 1.3, in `repos/gitops-system/tools/kubecost/kubecost-release.yaml`, together with the `kubecost-modeling` auxiliary image tag the target chart declares
+    - `kubecost` cost-analyzer `2.2.2` → the exact `2.9.x` patch resolved in task 1.3, in `repos/gitops-system/tools/kubecost/kubecost-release.yaml`, together with the `kubecost-modeling` auxiliary image tag the target chart declares
     - Set the label at `repos/gitops-system/clusters-config/template/secrets/namespace.yaml` to the full major.minor.patch of the controller image chart `2.20.0` deploys
     - Apply the values-schema diff procedure to each; pin any separately distributed CRD artifact to the same version as its application chart
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.9, 5.10, 5.11_
     - _Properties: Property 6, Property 8, Property 12, Property 13_
 
-  - [ ] 8.5 Add published IAM actions to the add-on policy documents
+  - [x] 8.5 Add published IAM actions to the add-on policy documents
     - For `repos/gitops-system/tools-config/aws-load-balancer-controller-iam`, `aws-ebs-csi-iam`, `external-secrets-iam`, `karpenter-iam`, and `crossplane-iam`, add actions the maintainers publish for the target version that are absent from our documents
     - Additive only — actions present in ours but absent upstream are left alone
     - _Requirements: 5.5_
 
-  - [ ]* 8.6 Run verification checks 1, 2, 3, 5 and 9, plus values-schema validation
+  - [x] 8.6 Run verification checks 1, 2, 3, 5 and 9, plus values-schema validation
     - Validate each `HelmRelease` values block against the target chart's published values schema where one exists
     - _Requirements: 10.1, 10.2, 10.3, 10.5, 10.13_
     - _Properties: Property 6_
 
-- [ ] 9. Cluster access configuration
-  - [ ] 9.1 Confirm the provider exposes an access-config field, or record a blocking finding
+- [x] 9. Cluster access configuration
+  - [x] 9.1 Confirm the provider exposes an access-config field, or record a blocking finding
     - Read the `Cluster` CRD in `crossplane-contrib/provider-aws:v0.59.0` and determine whether an access-config / `authenticationMode` field is settable on `spec.forProvider`
     - If settable, record the field path in the inventory. If not settable, record a **blocking finding** — the requirement is that the mode be stated in the creation request, so a default is not a substitute; do not proceed to 9.2 for the workload cluster path without surfacing this
     - _Requirements: 6.7_
 
-  - [ ] 9.2 Set `API_AND_CONFIG_MAP` at creation on both cluster paths
+  - [x] 9.2 Set `API_AND_CONFIG_MAP` at creation on both cluster paths
     - In `initial-setup/config/mgmt-cluster-eksctl.yaml`, state `API_AND_CONFIG_MAP` in the eksctl access-config block
     - In `repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml`, state `API_AND_CONFIG_MAP` on the `eks-cluster` resource's `spec.forProvider` access-config field confirmed in 9.1
     - Must be stated at creation — enabling `API` cannot be reversed, and a cluster created without `CONFIG_MAP` can never gain it
     - Retain `repos/gitops-system/clusters/template/aws-auth.yaml` and both existing `aws-auth` mappings (console IAM entity, Karpenter node role with `system:bootstrappers` and `system:nodes`) on the management and workload cluster paths unchanged
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8_
 
-  - [ ]* 9.3 Run verification checks 1 and 2
+  - [x] 9.3 Run verification checks 1 and 2
     - _Requirements: 10.1, 10.2_
 
-- [ ] 10. Bootstrap environment: Cloud9 → VS Code
-  - [ ] 10.1 Remove Cloud9 from the CloudFormation template
+- [x] 10. Bootstrap environment: Cloud9 → VS Code
+  - [x] 10.1 Remove Cloud9 from the CloudFormation template
     - In `initial-setup/auto/cfn.yaml`, delete the `AWS::Cloud9::EnvironmentEC2` resource `EKSEnvironment`; the parameters `Cloud9WorkspaceName`, `Cloud9WorkspaceDescription`, `Cloud9IDEInstanceType`, `Cloud9ImageId`, `Cloud9EBSVolumeSize`; `ResizeEBSVolumeDoc`; the `EKSCloud9EnvUrl` output; every `cloud9:*` IAM action; every `CLOUD9_*` environment variable; and the `aws:cloud9:environment` tag lookup with its post-create instance-profile association, reboot, and managed-credentials disable steps
     - Retain `EKSEnvironmentInstanceProfile` and `EKSEnvironmentRole` in function, with the role's `cloud9:*` statements removed
     - Leave unchanged: `BuildProject`, `WaitForStackCreationHandle`/`WaitCondition`, `CustomTriggerBuild`/`TriggerBuildLambda`, `CWLogGroup`, the VPC/subnets/IGW/NAT/route tables/S3+DynamoDB endpoints, all four CodeCommit repositories, `GitOpsUser`, `CodeBuildRole`
     - _Requirements: 2.15_
     - _Properties: Property 16_
 
-  - [ ] 10.2 Delete the Cloud9 asset files
+  - [x] 10.2 Delete the Cloud9 asset files
     - Delete `initial-setup/config/cloud9-role-permission-policy-template.json`, `initial-setup/img/c9-modify-role.png`, `initial-setup/img/c9instancerole.png`, `initial-setup/img/cloud9-role.png`
     - _Requirements: 2.16_
     - _Properties: Property 16_
 
-  - [ ] 10.3 Add the Dev_Environment stack resources
+  - [x] 10.3 Add the Dev_Environment stack resources
     - In `initial-setup/auto/cfn.yaml`, following the resource pattern of `initial-setup/auto/reference/code-editor.yaml`, add: an `AWS::EC2::Instance` running AL2023 and SSM-managed, with its instance profile and root volume size stated in the instance declaration; a CloudFront distribution; a Secrets Manager generated password; a `CodeEditorSSMDoc` bootstrap document; a health-check Lambda; a security group whose only inbound rule sources the AWS-managed CloudFront origin-facing prefix list for the stack's Region; Dev_Environment instance-type and volume-size parameters; and a stack output carrying the Dev_Environment URL
     - Gate the CodeBuild trigger on the health check: if the environment is not reachable within 20 minutes of the instance entering `running`, fail the stack naming the Dev_Environment as the failing resource and do not run the setup documents
     - State zero literal credential values in the template
     - _Requirements: 2.13, 2.14, 2.18, 2.19, 2.20, 2.21, 2.22, 2.23, 2.24_
 
-  - [ ] 10.4 Retarget the SSM orchestration
+  - [x] 10.4 Retarget the SSM orchestration
     - Name the Dev_Environment instance as the Run Command target of all eight retained documents — `InstallK8sClientToolsDoc`, `CloneWorkshopRepo`, `CreateEKSClusterDoc`, `CreateRootSealedSecretsEncryptionKeysDoc`, `SetupCodeCommitSSHAccessDoc`, `CloneCodeCommitReposDoc`, `CreateIAMRoleForCrossplaneDoc`, `ConfigureWorkshopEnvironmentDoc`, `BootstrapGitAndManagementClusterDoc` — plus the new bootstrap document
     - Change CodeBuild instance discovery to read the Dev_Environment instance ID from a stack resource reference instead of the Cloud9 tag lookup; CodeBuild still signals `WaitCondition` on completion
     - _Requirements: 2.17_
 
-  - [ ]* 10.5 Run verification checks 8, 10 and 12
+  - [x] 10.5 Run verification checks 8, 10 and 12
     - _Requirements: 10.9, 10.12, 2.15, 2.16_
     - _Properties: Property 16_
 
-- [ ] 11. Sample application upgrade
-  - [ ] 11.1 Upgrade the Python API applications
+- [x] 11. Sample application upgrade
+  - [x] 11.1 Upgrade the Python API applications
     - In `repos/apps/product-catalog-api/v1/Dockerfile` and `v2/Dockerfile`, replace `python:3.9-slim` with an explicit `python:3.X-slim` whose CPython security-support end date is after the commit date
     - In both `requirements.txt` files, replace `requests==v2.33.0` with an exact PyPI version expressed as digits and separators only, and set `Flask` and `werkzeug` to one identical version across v1 and v2 so a character-by-character comparison of the shared entries reports no difference
     - `requests==v2.33.0` names an unpublished version and fails installation today — this is a break fix, not cleanup
     - _Requirements: 7.1, 7.3, 7.5, 7.6_
     - _Properties: Property 14_
 
-  - [ ] 11.2 Upgrade the frontend application
+  - [x] 11.2 Upgrade the frontend application
     - In `repos/apps/product-catalog-fe/Dockerfile`, replace `node:14` with an explicit even-numbered Node.js major in Active or Maintenance LTS
     - In `package.json`, set `express` and `body-parser` to ranges whose lower bounds are published on npm (`^4.22.3` and `^1.20.8` are not), and confirm `axios`, `ejs`, `prom-client`, `nodemon` resolve with the bundled npm client
     - Regenerate `package-lock.json` after the ranges settle so every resolved version satisfies its range and every declared dependency is present
     - Use a lockfile-based install command whose options the bundled npm version accepts
     - _Requirements: 7.2, 7.4, 7.7, 7.8_
 
-  - [ ] 11.3 Replace mutable image tags in deployment manifests
+  - [x] 11.3 Replace mutable image tags in deployment manifests
     - Replace `:latest` with an immutable tag in `repos/apps-manifests/product-catalog-fe-manifests/kubernetes/overlays/prod/deployment.yaml` and `overlays/staging/deployment.yaml`, and check the API manifests' prod and staging overlays for the same
     - _Requirements: 7.9_
     - _Properties: Property 13_
 
-  - [ ]* 11.4 Run verification checks 6, 7 and 13
+  - [x] 11.4 Run verification checks 6, 7 and 13
     - _Requirements: 7.10, 7.11, 7.12, 7.13, 10.6, 10.7_
 
-- [ ] 12. Documentation alignment
-  - [ ] 12.1 Rewrite `initial-setup/README.md`
+- [x] 12. Documentation alignment
+  - [x] 12.1 Rewrite `initial-setup/README.md`
     - Restate every version as its inventory `target`: kubectl `1.24.7` → a `1.36` patch, `yq v4.24.5` → `v4.53.6`, `kubeseal v0.19.4` → the controller minor from sealed-secrets chart `2.20.0`, Flux CLI `0.35.0` → the same `2.9` release pinned in `cfn.yaml`
     - Replace the Cloud9 workspace preparation section with steps for opening the Dev_Environment, including obtaining the URL from the stack output and the credential from Secrets Manager, and state the Dev_Environment OS name and version in place of the Ubuntu 18.04 description
     - Delete the steps, screenshots, and policy-template references for creating and attaching the Cloud9 instance role, and renumber the remaining steps of those procedures consecutively
@@ -307,23 +307,23 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - _Requirements: 9.1, 9.2, 9.4, 9.5, 9.11, 9.12, 9.13, 9.15, 9.16, 5.12, 3.7_
     - _Properties: Property 15_
 
-  - [ ] 12.2 Update the remaining documentation files
+  - [x] 12.2 Update the remaining documentation files
     - In `README.md`, `repos/gitops-system/README.md`, `bin/README.md`, and the files under `initial-setup/doc/`, restate every version as its inventory `target` and reference only paths present in the repository
     - Name `crossplane-contrib/provider-aws` as the AWS provider package the platform references after the upgrade, and link to its authentication guidance with a resolvable URL
     - Link to the upgrade notes file created in task 12.5
     - _Requirements: 9.1, 9.2, 9.3, 9.9, 9.10_
     - _Properties: Property 15_
 
-  - [ ] 12.3 Update the cluster upgrade scenario
+  - [x] 12.3 Update the cluster upgrade scenario
     - In `scenarios.md`, state the upgrade as `1.35` → `1.36` and state no other Kubernetes version number in that scenario
     - State that the workload cluster version is one minor below the management cluster version by intent, to give this scenario a version gap to exercise
     - _Requirements: 9.7, 9.8_
 
-  - [ ] 12.4 Update the clean-up procedure
+  - [x] 12.4 Update the clean-up procedure
     - In `clean-up/README.md`, add the Dev_Environment deletion step and remove the Cloud9 deletion step
     - _Requirements: 9.14_
 
-  - [ ] 12.5 Write the migration log and the four rationale notes
+  - [x] 12.5 Write the migration log and the four rationale notes
     - Create `initial-setup/doc/upgrade-notes.md` containing, for each Pinned_Component whose upgrade required a manifest or configuration change, the component name, the change made, and a resolvable upstream migration URL — covering at minimum the Flux beta API removal, the Karpenter v1 migration, the AL2 → AL2023 change, and the Crossplane platform bumps
     - Include the live-upgrade ordering guidance, addressed to an operator rolling this upgrade onto running infrastructure and stated as such — these constraints do not apply to editing this repository, where intermediate states are inert: move node groups and `EC2NodeClass` resources to AL2023 **before** raising a running cluster's Kubernetes version above `1.32`, since above that boundary Amazon EKS publishes no AL2 AMI and a node group still declaring `AL2_x86_64` cannot be created or replaced; apply the `gotk-components.yaml` change and the consuming Flux custom resource changes **together, in one reconciliation**, because the components alone leave existing beta resources unserved and the resources alone fail admission against the old CRDs; follow the upstream Karpenter v1 migration order rather than applying the v1 manifests directly, and schedule the node replacement that `amiFamily: AL2023` triggers; and note that `authenticationMode` cannot be changed to add `CONFIG_MAP` after creation, so an existing cluster created without it cannot be brought onto the retained `aws-auth` path and must be recreated
     - Include the four mandated notes: the workload/management version gap is intentional; Crossplane v2 is out of scope, naming composite resource connection details, native patch-and-transform composition, and `ControllerConfig` as the capabilities it removes, with a link to the v2 upgrade guide; `aws-auth` is deprecated but retained, linking the EKS guidance, recording access entries as deferred, and stating both irreversibility constraints; and the development environment changed because AWS closed Cloud9 to new customers, with a link stating that unavailability
@@ -331,13 +331,13 @@ Out of scope, per the design's non-goals: Crossplane v2 migration, `ControllerCo
     - Record the `eks-console/` path resolution decision from task 12.1
     - _Requirements: 9.6, 9.18, 4.9, 4.11, 4.20, 6.10_
 
-  - [ ]* 12.6 Run the full credential-free suite
+  - [x] 12.6 Run the full credential-free suite
     - Run `verify/run.sh` end to end; checks 1–13 must all pass within the 600-second budget and checks 14–15 must report as skipped with a reason
     - Check 11 must report zero documented version strings diverging from the inventory and zero referenced paths absent from the repository
     - _Requirements: 9.17, 10.1, 10.14, 10.17_
     - _Properties: Property 15, Property 16_
 
-- [ ] 13. Checkpoint — offline suite green
+- [x] 13. Checkpoint — offline suite green
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 14. End-to-end run — REQUIRES AN AWS ACCOUNT

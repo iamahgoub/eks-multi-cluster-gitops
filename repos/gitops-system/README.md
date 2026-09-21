@@ -47,7 +47,7 @@ The `external-secrets` subdirectory contains a `HelmRelease` for installing the
 External Secrets operator (used only by the management cluster).
 
 [crossplane]: https://github.com/crossplane/crossplane
-[crossplane-aws]: https://github.com/crossplane/provider-aws
+[crossplane-aws]: https://github.com/crossplane-contrib/provider-aws
 
 ### `tools-config`
 

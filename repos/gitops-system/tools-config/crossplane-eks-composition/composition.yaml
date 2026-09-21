@@ -482,6 +482,8 @@ spec:
         kind: Cluster
         spec:
           forProvider:
+            accessConfig:
+              authenticationMode: API_AND_CONFIG_MAP
             roleArnSelector:
               matchLabels:
                 type: eks-cluster-role
@@ -573,8 +575,8 @@ spec:
           transforms:
             - type: map
               map:
-                gpu: AL2_x86_64_GPU
-                non-gpu: AL2_x86_64
+                gpu: AL2023_x86_64_NVIDIA
+                non-gpu: AL2023_x86_64_STANDARD
 
     - name: cluster-oidc-idp
       base:
@@ -586,8 +588,12 @@ spec:
           forProvider:
             clientIDList:
               - sts.amazonaws.com
+            # thumbprintList is required by the OpenIDConnectProvider CRD
+            # (minItems: 1) in provider-aws v0.59.0, so the field is retained
+            # with a placeholder that is overwritten at provisioning time by
+            # the patch below. No literal CA thumbprint is hard-coded.
             thumbprintList:
-              - '9e99a48a9960b14926bb7f3b02e22da2b0ab7280'
+              - ''
       patches:
         - fromFieldPath: metadata.name
           toFieldPath: metadata.name
@@ -597,6 +603,14 @@ spec:
                 fmt: 'cluster-oidc-idp-%s'
         - fromFieldPath: status.eks_cluster_oidc_issuer_url
           toFieldPath: spec.forProvider.url
+          policy:
+            fromFieldPath: Required
+        # Derive the OIDC identity provider thumbprint from the provisioned
+        # cluster at provisioning time instead of hard-coding it, mirroring
+        # the url patch above. Drives thumbprintList[0] through the existing
+        # patches mechanism so no literal thumbprint value survives.
+        - fromFieldPath: status.eks_cluster_oidc_issuer_url
+          toFieldPath: spec.forProvider.thumbprintList[0]
           policy:
             fromFieldPath: Required
 

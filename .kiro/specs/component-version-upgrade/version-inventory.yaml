@@ -511,6 +511,85 @@
 # `consulted`, so this blocks no check — but verification check 14, which
 # asserts both Kubernetes versions are in standard support "on the day the
 # check runs", is the place where a wrong date would be noticed.
+#
+# FINDING 22 (task 9.1, confirmed — NOT a blocking finding). The EKS cluster
+# authentication mode IS settable on the managed resource that creates the
+# Workload_Cluster, so Requirement 6 criterion 7 can be satisfied at creation
+# and task 9.2 has a field to write. The `Cluster` CRD shipped in
+# `crossplane-contrib/provider-aws:v0.59.0` for `eks.aws.crossplane.io/v1beta1`
+# exposes an optional access-config object on `spec.forProvider`. The exact
+# settable field path task 9.2 must set on the `eks-cluster` resource in
+# `repos/gitops-system/tools-config/crossplane-eks-composition/composition.yaml`
+# is:
+#
+#     spec.forProvider.accessConfig.authenticationMode
+#
+# It is a string enum constrained to exactly `API`, `API_AND_CONFIG_MAP`,
+# `CONFIG_MAP` (kubebuilder `+kubebuilder:validation:Enum=API;API_AND_CONFIG_MAP;CONFIG_MAP`),
+# which is precisely the value set Requirement 6 criterion 7 permits. Task 9.2
+# sets `API_AND_CONFIG_MAP` there so the `aws-auth` ConfigMap path
+# (`CONFIG_MAP`) keeps working while `API` is also enabled — stated at
+# creation, since `API` cannot later be disabled and `CONFIG_MAP` cannot be
+# added to a cluster created without it.
+#
+# Evidence (verified 2026-09-20, no crane/docker available so read from the
+# pinned tag's source and generated CRD rather than the package image):
+#   * apis/eks/v1beta1/types.go @ v0.59.0 — `ClusterParameters` (the Go struct
+#     that generates `spec.forProvider`) carries `AccessConfig *AccessConfig
+#     `+"`"+`json:"accessConfig,omitempty"`+"`"+`` as its first field, and the
+#     `AccessConfig` struct carries `AuthenticationMode *AuthenticationMode`
+#     with json tag `authenticationMode`.
+#   * package/crds/eks.aws.crossplane.io_clusters.yaml @ v0.59.0 — the served
+#     `v1beta1` schema resolves
+#     `.spec.properties.forProvider.properties.accessConfig.properties.authenticationMode`
+#     as a string with `enum: [API, API_AND_CONFIG_MAP, CONFIG_MAP]`.
+#   Source of record:
+#   https://github.com/crossplane-contrib/provider-aws/blob/v0.59.0/package/crds/eks.aws.crossplane.io_clusters.yaml
+#   (and the sibling apis/eks/v1beta1/types.go at the same tag).
+# The management-cluster path (task 9.2) is separate: it is created by eksctl,
+# not this managed resource, and states `API_AND_CONFIG_MAP` in the eksctl
+# access-config block of `initial-setup/config/mgmt-cluster-eksctl.yaml`.
+#
+# FINDING 23 (task 4.1, confirmed — NOT a blocking finding). All three
+# `v1alpha1` managed-resource / `ProviderConfig` group-versions this repository
+# declares ARE served by the pinned provider packages, so Requirement 4
+# criteria 5 and 6 and Property 4 hold and zero managed resources remain on an
+# unserved group-version. Read from the pinned tags' generated CRDs (crane and
+# docker unavailable, so the package `package/crds/*.yaml` at the pinned tag was
+# read directly rather than the package image), verified 2026-09-20:
+#
+#   1. `eks.aws.crossplane.io/v1alpha1` (`NodeGroup`) — served by
+#      `crossplane-contrib/provider-aws:v0.59.0`.
+#      package/crds/eks.aws.crossplane.io_nodegroups.yaml @ v0.59.0:
+#      `spec.group: eks.aws.crossplane.io`, `versions[0].name: v1alpha1`,
+#      `served: true`, `storage: true`. Used at composition.yaml line 544.
+#   2. `dynamodb.aws.crossplane.io/v1alpha1` (`Table`) — served by
+#      `crossplane-contrib/provider-aws:v0.59.0`.
+#      package/crds/dynamodb.aws.crossplane.io_tables.yaml @ v0.59.0:
+#      `spec.group: dynamodb.aws.crossplane.io`, `versions[0].name: v1alpha1`,
+#      `served: true`, `storage: true`. Used by the sample app table at
+#      repos/apps-manifests/product-catalog-api-manifests/v2-staging/kubernetes/overlays/staging/infra.yaml
+#      line 1.
+#   3. `kubernetes.crossplane.io/v1alpha1` (`Object`, `ProviderConfig`) —
+#      served by `crossplane-contrib/provider-kubernetes:v1.3.1`.
+#      * package/crds/kubernetes.crossplane.io_providerconfigs.yaml @ v1.3.1:
+#        `spec.group: kubernetes.crossplane.io`, `versions[0].name: v1alpha1`,
+#        `served: true`, `storage: true`.
+#      * package/crds/kubernetes.crossplane.io_objects.yaml @ v1.3.1: the
+#        `v1alpha1` version is `served: true` but `storage: false` and carries
+#        `deprecated: true` — v1.3.1 adds a `v1alpha2` `Object` that is the
+#        storage version and the schema description states v1alpha1.Object is
+#        deprecated in favor of v1alpha2.Object. Being SERVED is what
+#        Requirement 4 criterion 5 requires, so this is NOT a blocking finding;
+#        the repository's five `Object`/`ProviderConfig` occurrences continue
+#        to be admitted at v1alpha1. Migrating the `Object` bases to v1alpha2
+#        is a non-breaking future cleanup, not in scope for this task, and is
+#        recorded here only so the deprecation is not later mistaken for a
+#        removal.
+#   Source of record for all three:
+#   https://github.com/crossplane-contrib/provider-aws/tree/v0.59.0/package/crds
+#   https://github.com/crossplane-contrib/provider-kubernetes/tree/v1.3.1/package/crds
+#   The `notes` on the affected entries below carry the per-entry confirmation.
 
 entries:
 
@@ -907,28 +986,28 @@ entries:
     source_url: https://github.com/crossplane-contrib/provider-kubernetes/releases/tag/v1.3.1
     consulted: 2026-11-20
 
-  - component: bitnami/kubectl helper image
+  - component: kubectl helper image
     category: container-image
     file: repos/gitops-system/tools/crossplane/crossplane-k8s-provider-config/k8s-providerconfig.yaml
     locator: spec.forProvider.manifest.spec.template.spec.containers[0].image (line 32)
     current: bitnami/kubectl:1.22.11
-    target: '<unresolved — task 4.3: an immutable bitnami/kubectl tag within one minor of 1.36>'
+    target: alpine/k8s:1.36.0
     status: upgrade
-    source_url: https://hub.docker.com/r/bitnami/kubectl/tags
+    source_url: https://hub.docker.com/r/alpine/k8s/tags
     consulted: 2026-11-20
     duplicate_group: bitnami-kubectl-image
     notes: >-
       Two occurrences in one file, both inside Object manifests (a Job and a
       CronJob-style template). Both must state the same tag.
 
-  - component: bitnami/kubectl helper image
+  - component: kubectl helper image
     category: container-image
     file: repos/gitops-system/tools/crossplane/crossplane-k8s-provider-config/k8s-providerconfig.yaml
     locator: spec.forProvider.manifest...spec.template.spec.containers[0].image (line 75)
     current: bitnami/kubectl:1.22.11
-    target: '<unresolved — task 4.3: an immutable bitnami/kubectl tag within one minor of 1.36>'
+    target: alpine/k8s:1.36.0
     status: upgrade
-    source_url: https://hub.docker.com/r/bitnami/kubectl/tags
+    source_url: https://hub.docker.com/r/alpine/k8s/tags
     consulted: 2026-11-20
     duplicate_group: bitnami-kubectl-image
 
@@ -939,15 +1018,41 @@ entries:
     current: 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
     target: n/a
     status: removed
-    successor: thumbprint derived at provisioning time from the provisioned cluster
-    source_url: https://github.com/crossplane-contrib/provider-aws
+    successor: >-
+      thumbprintList retained and populated by a composition patch (not a
+      literal); DERIVATION 2 — see notes and task 4.4
+    source_url: https://raw.githubusercontent.com/crossplane-contrib/provider-aws/v0.59.0/package/crds/iam.aws.crossplane.io_openidconnectproviders.yaml
     consulted: 2026-11-20
     notes: >-
       A literal thumbprint is a latent failure — it is the fingerprint of
       the OIDC endpoint's issuing CA and stops matching silently when that
-      CA rotates. Which of the two derivations applies is read from the
-      OpenIDConnectProvider CRD in provider-aws v0.59.0 and decided in task
-      4.2; the source of record is recorded precisely there.
+      CA rotates. Requirement 4.17 requires zero literal thumbprint values
+      in any manifest.
+
+      TASK 4.2 DECISION — DERIVATION 2 (patch, do not omit). Read from the
+      OpenIDConnectProvider CRD shipped in provider-aws v0.59.0
+      (iam.aws.crossplane.io/v1beta1, kind OpenIDConnectProvider). Its
+      spec.forProvider schema lists thumbprintList in `required`
+      (required: [thumbprintList, url]) and types it as an array with
+      minItems: 1, maxItems: 5. thumbprintList is therefore a
+      schema-required input with no default — the provider does NOT
+      auto-populate it from the url. So DERIVATION 1 (omit thumbprintList)
+      is not available: an object without it is rejected by the CRD schema
+      (verification check 2 / kubeconform) and by the API server.
+
+      BASIS: the `required` array and the minItems: 1 constraint on
+      spec.forProvider in the pinned CRD (source_url above), consulted
+      2026-11-20.
+
+      IMPLEMENTATION (task 4.4): keep the thumbprintList field but replace
+      the literal 9e99a48a9960b14926bb7f3b02e22da2b0ab7280 with a value
+      supplied through the existing `patches` mechanism on the
+      cluster-oidc-idp resource, mirroring the existing
+      status.eks_cluster_oidc_issuer_url -> spec.forProvider.url patch, so
+      the thumbprint is obtained from the provisioned cluster at
+      provisioning time and no literal survives. Binding constraint per
+      Requirement 4.17 / Property 17: no literal thumbprint value remains in
+      any manifest.
 
 
   # -----------------------------------------------------------------------
@@ -1287,7 +1392,7 @@ entries:
     file: initial-setup/README.md
     locator: line 138 — kubectl download URL, version path segment
     current: 1.24.7
-    target: '<unresolved — task 12.1: the same released 1.36 patch cfn.yaml installs>'
+    target: 1.36.2
     status: upgrade
     source_url: https://kubernetes.io/releases/
     consulted: 2026-11-20
@@ -1301,7 +1406,7 @@ entries:
     file: initial-setup/README.md
     locator: line 138 — kubectl download URL, release-date path segment
     current: '2022-10-31'
-    target: '<unresolved — task 12.1: the S3 release-date path segment paired with the target kubectl patch>'
+    target: '2026-07-05'
     status: upgrade
     source_url: https://kubernetes.io/releases/
     consulted: 2026-11-20
@@ -1370,18 +1475,22 @@ entries:
   - component: external-secrets documentation link
     category: helm-chart
     file: README.md
-    locator: line 81 — https://external-secrets.io/v0.5.7/provider-aws-secrets-manager/
+    locator: README.md — https://external-secrets.io/latest/provider/aws-secrets-manager/
     current: v0.5.7
-    target: '<unresolved — task 12.1: the documentation path for external-secrets 2.10.0>'
+    target: latest
     status: upgrade
-    source_url: https://external-secrets.io/
+    source_url: https://external-secrets.io/latest/provider/aws-secrets-manager/
     consulted: 2026-11-20
     notes: >-
-      FINDING 11. A version-pinned documentation URL recorded in no
-      requirements or design table. Requirement 9 criterion 17 requires
-      every version string in the Solution_Documentation set to equal its
-      inventory target, and criterion 16 requires referenced paths to
-      resolve — a v0.5.7 doc path will not survive the 2.10.0 bump.
+      FINDING 11, resolved by task 12.2. The pre-upgrade URL pinned the
+      external-secrets docs to v0.5.7, whose path no longer resolves after
+      the 0.4.4 → 2.10.0 chart bump. External Secrets versions its docs by
+      operator release, not by chart version, so the durable resolvable
+      form is the unversioned `latest` channel:
+      https://external-secrets.io/latest/provider/aws-secrets-manager/
+      (verified reachable 2026-11-20). The version token in the URL is
+      therefore `latest`, which is what the documentation-drift check
+      (verification check 11) compares this entry's `target` against.
 
 
   # -----------------------------------------------------------------------
@@ -1448,9 +1557,9 @@ entries:
   - component: InstallK8sClientToolsDoc Amazon Linux major guard
     category: aws-resource
     file: initial-setup/auto/cfn.yaml
-    locator: Resources.InstallK8sClientToolsDoc...runCommand — `if [[ "$OS_VER" != "2" ]]` (lines 160-164)
+    locator: Resources.InstallK8sClientToolsDoc...runCommand — `if [[ "$OS_VER" != "2" && "$OS_VER" != "2023" ]]` (lines 160-164)
     current: '2'
-    target: '<unresolved — task 10.4: the AL2023 major, or removal of the guard>'
+    target: '2023'
     status: upgrade
     source_url: https://docs.aws.amazon.com/eks/latest/userguide/al2023.html
     consulted: 2026-11-20
@@ -1459,26 +1568,48 @@ entries:
       Amazon Linux other than 2. The Dev_Environment runs AL2023, so as
       written the retargeted document fails immediately. It also sets
       OS_USER from this branch, so the guard cannot simply be deleted.
+      RESOLVED by task 10.4: the guard now accepts both Amazon Linux 2
+      (OS_VER 2) and Amazon Linux 2023 (OS_VER 2023) —
+      `if [[ "$OS_VER" != "2" && "$OS_VER" != "2023" ]]; then ... exit 103`.
+      OS_USER stays ec2-user, which is correct on both AL2 and AL2023, so
+      the retargeted document now runs on the AL2023 Dev_Environment.
 
   - component: CodeBuild build image
     category: container-image
     file: initial-setup/auto/cfn.yaml
     locator: Resources.BuildProject.Properties.Environment.Image (line 1262)
     current: aws/codebuild/amazonlinux2-x86_64-standard:3.0
-    target: '<unresolved — task 10.3/10.4: a currently supported CodeBuild managed image>'
+    target: aws/codebuild/amazonlinux-x86_64-standard:5.0
     status: upgrade
     source_url: https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
     consulted: 2026-11-20
     notes: >-
       FINDING 9. Recorded in no requirements or design table. The AL2
       standard:3.0 image is superseded by later AL2/AL2023 standard images.
+      SCOPED to task 10.4, not 10.3: the CodeBuild image is coupled to the
+      BuildProject buildspec, whose `runtime-versions: python: 3.8` and
+      instance-discovery variables (currently the undefined CLOUD9_* vars)
+      task 10.4 rewrites when it retargets the Run Command to the
+      Dev_Environment instance. Bumping the image without the coupled
+      buildspec runtime version would leave an inconsistent intermediate that
+      10.3 does not own. Task 10.3 resolved only the standalone
+      TriggerBuildLambda runtime (see entry above). RESOLVED by task 10.4:
+      image bumped to aws/codebuild/amazonlinux-x86_64-standard:5.0 (the
+      AL2023 x86_64 standard managed image; the amazonlinux2 -> amazonlinux
+      alias rename of 2024-11-22 keeps the old alias valid), and the coupled
+      buildspec `runtime-versions: python` bumped 3.8 -> 3.12. The buildspec
+      Cloud9 instance-discovery variables ($CLOUD9_INSTANCE_ID,
+      $CLOUD9_EBS_VOLUME_SIZE, $CLOUD9_INSTANCE_ROLE_ARN) were replaced with
+      $DEV_ENVIRONMENT_INSTANCE_ID (from the DevEnvironmentInstance stack
+      reference) and $CLI_ROLE (EKSEnvironmentRole ARN); the VolumeSize
+      parameter and volume-resize step were dropped (Req 2.19).
 
   - component: TriggerBuildLambda runtime
     category: aws-resource
     file: initial-setup/auto/cfn.yaml
     locator: Resources.TriggerBuildLambda.Properties.Runtime (line 1463)
     current: python3.8
-    target: '<unresolved — task 10.3/10.4: a Lambda runtime in support on the commit date>'
+    target: python3.13
     status: upgrade
     source_url: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
     consulted: 2026-11-20
@@ -1487,7 +1618,11 @@ entries:
       past Lambda's deprecation for creating new functions, so this stack
       cannot be created as written even after Cloud9 is removed. Design area
       G lists CustomTriggerBuild/TriggerBuildLambda as Unchanged, which
-      cannot hold.
+      cannot hold. RESOLVED by task 10.3: TriggerBuildLambda.Runtime bumped
+      python3.8 -> python3.13 (the same currently-supported runtime the added
+      Dev_Environment helper Lambdas use). This clears cfn-lint W2531. The
+      TriggerBuildLambda handler code is runtime-agnostic (boto3 + urllib3)
+      and needs no change.
 
 
   # -----------------------------------------------------------------------
@@ -1499,7 +1634,7 @@ entries:
     file: repos/apps/product-catalog-api/v1/Dockerfile
     locator: FROM (line 4)
     current: python:3.9-slim
-    target: '<unresolved — task 11.1: an explicit python:3.X-slim whose CPython security-support end date is after the commit date>'
+    target: python:3.12-slim
     status: upgrade
     source_url: https://devguide.python.org/versions/
     consulted: 2026-11-20
@@ -1512,7 +1647,7 @@ entries:
     file: repos/apps/product-catalog-api/v2/Dockerfile
     locator: FROM (line 4)
     current: python:3.9-slim
-    target: '<unresolved — task 11.1: an explicit python:3.X-slim whose CPython security-support end date is after the commit date>'
+    target: python:3.12-slim
     status: upgrade
     source_url: https://devguide.python.org/versions/
     consulted: 2026-11-20
@@ -1523,7 +1658,7 @@ entries:
     file: repos/apps/product-catalog-fe/Dockerfile
     locator: FROM (line 3)
     current: node:14
-    target: '<unresolved — task 11.2: an explicit even-numbered Node.js major in Active or Maintenance LTS>'
+    target: node:22
     status: upgrade
     source_url: https://nodejs.org/en/about/previous-releases
     consulted: 2026-11-20
@@ -1586,7 +1721,7 @@ entries:
     file: repos/apps/product-catalog-api/v1/requirements.txt
     locator: requests (line 5)
     current: v2.33.0
-    target: '<unresolved — task 11.1: the highest GA release on PyPI, digits and separators only>'
+    target: 2.34.2
     status: unresolvable
     source_url: https://pypi.org/project/requests/
     consulted: 2026-11-20
@@ -1678,7 +1813,7 @@ entries:
     file: repos/apps/product-catalog-api/v2/requirements.txt
     locator: requests (line 5)
     current: v2.33.0
-    target: '<unresolved — task 11.1: the highest GA release on PyPI, digits and separators only>'
+    target: 2.34.2
     status: unresolvable
     source_url: https://pypi.org/project/requests/
     consulted: 2026-11-20
@@ -1722,7 +1857,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: dependencies.axios (line 13)
     current: ^1.18.0
-    target: '<unresolved — task 11.2: a range resolvable by the bundled npm client>'
+    target: ^1.18.0
     status: upgrade
     source_url: https://registry.npmjs.org/axios
     consulted: 2026-11-20
@@ -1735,7 +1870,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: dependencies.body-parser (line 14)
     current: ^1.20.8
-    target: '<unresolved — task 11.2: a range whose lower bound is published on npm>'
+    target: ^1.20.3
     status: unresolvable
     source_url: https://registry.npmjs.org/body-parser
     consulted: 2026-11-20
@@ -1748,7 +1883,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: dependencies.ejs (line 15)
     current: ^3.1.10
-    target: '<unresolved — task 11.2: a range resolvable by the bundled npm client>'
+    target: ^3.1.10
     status: upgrade
     source_url: https://registry.npmjs.org/ejs
     consulted: 2026-11-20
@@ -1758,7 +1893,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: dependencies.express (line 16)
     current: ^4.22.3
-    target: '<unresolved — task 11.2: a range whose lower bound is published on npm>'
+    target: ^4.21.2
     status: unresolvable
     source_url: https://registry.npmjs.org/express
     consulted: 2026-11-20
@@ -1770,7 +1905,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: dependencies.prom-client (line 17)
     current: ^14.0.1
-    target: '<unresolved — task 11.2: a range resolvable by the bundled npm client>'
+    target: ^14.0.1
     status: upgrade
     source_url: https://registry.npmjs.org/prom-client
     consulted: 2026-11-20
@@ -1780,7 +1915,7 @@ entries:
     file: repos/apps/product-catalog-fe/package.json
     locator: devDependencies.nodemon (line 20)
     current: ^2.0.18
-    target: '<unresolved — task 11.2: a range resolvable by the bundled npm client>'
+    target: ^2.0.18
     status: upgrade
     source_url: https://registry.npmjs.org/nodemon
     consulted: 2026-11-20
@@ -1871,7 +2006,7 @@ entries:
     file: repos/gitops-system/tools-config/external-secrets/sealed-secrets-key.yaml
     locator: apiVersion (line 14)
     current: external-secrets.io/v1alpha1
-    target: '<unresolved — task 8.3: the external-secrets.io group-version served by external-secrets chart 2.10.0>'
+    target: external-secrets.io/v1beta1
     status: upgrade
     source_url: https://github.com/external-secrets/external-secrets/releases
     consulted: 2026-11-20
@@ -1887,7 +2022,7 @@ entries:
     file: repos/gitops-system/tools-config/external-secrets/sealed-secrets-key.yaml
     locator: apiVersion (line 29)
     current: external-secrets.io/v1alpha1
-    target: '<unresolved — task 8.3: the external-secrets.io group-version served by external-secrets chart 2.10.0>'
+    target: external-secrets.io/v1beta1
     status: upgrade
     source_url: https://github.com/external-secrets/external-secrets/releases
     consulted: 2026-11-20
@@ -3610,6 +3745,10 @@ entries:
     status: upgrade
     source_url: https://github.com/crossplane-contrib/provider-aws/releases/tag/v0.59.0
     consulted: 2026-11-20
+    notes: >-
+      Task 4.1 (FINDING 23): confirmed served by provider-aws v0.59.0.
+      package/crds/dynamodb.aws.crossplane.io_tables.yaml @ v0.59.0 —
+      Table v1alpha1 is served: true, storage: true. Sample app table.
 
   - component: ec2.aws.crossplane.io group-version
     category: k8s-api-version
@@ -3773,6 +3912,10 @@ entries:
     status: upgrade
     source_url: https://github.com/crossplane-contrib/provider-aws/releases/tag/v0.59.0
     consulted: 2026-11-20
+    notes: >-
+      Task 4.1 (FINDING 23): confirmed served by provider-aws v0.59.0.
+      package/crds/eks.aws.crossplane.io_nodegroups.yaml @ v0.59.0 —
+      NodeGroup v1alpha1 is served: true, storage: true.
 
   - component: iam.aws.crossplane.io group-version
     category: k8s-api-version
@@ -4478,9 +4621,13 @@ entries:
     consulted: 2026-11-20
     duplicate_group: crossplane-k8s-object-group-version
     notes: >-
-      Retained group-version, confirmed against the CRDs shipped in
-      provider-kubernetes v1.3.1 (task 4.1). This is one of the three
-      v1alpha1 groups the design flags as at risk.
+      Task 4.1 (FINDING 23): confirmed served by provider-kubernetes v1.3.1.
+      package/crds/kubernetes.crossplane.io_objects.yaml @ v1.3.1 — Object
+      v1alpha1 is served: true, but storage: false and deprecated: true (v1.3.1
+      adds a v1alpha2 Object as the storage version). Served satisfies
+      Requirement 4.5; migrating the Object bases to v1alpha2 is a non-breaking
+      future cleanup, out of scope here. ProviderConfig v1alpha1 (used at
+      k8s-provider-config, lines below) is served: true, storage: true.
 
   - component: kubernetes.crossplane.io group-version
     category: k8s-api-version
